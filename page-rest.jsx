@@ -28,7 +28,7 @@ function ProducoesPage() {
           <input
             value={q} onChange={(e) => setQ(e.target.value)}
             placeholder="Buscar por título, descrição ou tag…"
-            style={{ minWidth: 280, padding: '10px 18px', borderRadius: 999, border: '1px solid var(--line)', background: 'var(--white)', fontFamily: 'inherit', fontSize: 14, color: 'var(--ink)', outline: 'none' }}
+            style={{ flex: '1 1 220px', padding: '10px 18px', borderRadius: 999, border: '1px solid var(--line)', background: 'var(--card)', fontFamily: 'inherit', fontSize: 14, color: 'var(--ink)', outline: 'none' }}
           />
         </div>
         <div className="grid-3">
@@ -115,7 +115,7 @@ function NewsletterPage() {
         </div>
       </section>
       <section className="container section">
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 80, alignItems: 'center', padding: '0 0 64px', borderBottom: '1px solid var(--line)' }}>
+        <div className="newsletter-signup-grid" style={{ padding: '0 0 64px', borderBottom: '1px solid var(--line)' }}>
           <div>
             <h2 style={{ fontSize: 38, lineHeight: 1.1, letterSpacing: '-0.02em', margin: 0, fontWeight: 700, maxWidth: '18ch' }}>
               Assine <span style={{ fontStyle: 'italic', color: 'var(--ink-3)' }}>gratuitamente</span>.
