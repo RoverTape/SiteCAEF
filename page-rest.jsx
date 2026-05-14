@@ -2,7 +2,7 @@
 
 function ProducoesPage() {
   const { productions } = window.CAEF_DATA;
-  const types = ['Todos', 'Artigo', 'Iniciação Científica', 'Blog', 'Resenha'];
+  const types = ['Todos', 'Artigo', 'Iniciação Científica', 'Blog', 'Resenha', 'Produção Acadêmica', 'Extensão Acadêmica'];
   const [filter, setFilter] = React.useState('Todos');
   const [q, setQ] = React.useState('');
   const filtered = productions.filter(p =>
@@ -163,7 +163,7 @@ function NewsletterPage() {
 // Eventos
 function EventosPage() {
   const { events } = window.CAEF_DATA;
-  const cats = ['Todos', 'Palestra', 'Workshop', 'Mesa-redonda', 'Encontro'];
+  const cats = ['Todos', 'Palestra', 'Workshop', 'Roda de Conversa', 'Encontro'];
   const [cat, setCat] = React.useState('Todos');
   const filtered = events.filter(e => cat === 'Todos' || e.cat === cat);
   return (

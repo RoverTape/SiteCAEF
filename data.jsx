@@ -16,7 +16,7 @@ const productions = [
 const events = [
   { day: '25', mon: 'Abr', year: '2026', time: '19h00', loc: 'Auditório Principal — FACAMP', title: 'Palestra: Economia Brasileira em 2026', desc: 'Debate com economistas renomados sobre os desafios e perspectivas da economia brasileira.', cat: 'Palestra' },
   { day: '05', mon: 'Mai', year: '2026', time: '14h00', loc: 'Laboratório de Informática', title: 'Workshop: Análise de Dados Econômicos com Python', desc: 'Aprenda a utilizar Python para análise de dados econômicos e visualização de indicadores.', cat: 'Workshop' },
-  { day: '18', mon: 'Mai', year: '2026', time: '10h00', loc: 'Sala 304 — Bloco B', title: 'Mesa-redonda: Reforma Tributária e Equidade', desc: 'Discussão sobre os impactos distributivos da reforma tributária brasileira.', cat: 'Mesa-redonda' },
+  { day: '18', mon: 'Mai', year: '2026', time: '10h00', loc: 'Sala 304 — Bloco B', title: 'Roda de Conversa: Reforma Tributária e Equidade', desc: 'Discussão sobre os impactos distributivos da reforma tributária brasileira.', cat: 'Roda de Conversa' },
   { day: '02', mon: 'Jun', year: '2026', time: '18h30', loc: 'Auditório Principal — FACAMP', title: 'Café Econômico: Carreiras no Setor Público', desc: 'Encontro informal com ex-alunos atuando no Banco Central, IPEA e Tesouro Nacional.', cat: 'Encontro' },
 ];
 
