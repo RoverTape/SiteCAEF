@@ -22,10 +22,10 @@ jobs:
     steps:
       - name: Ler 1 linha do banco (mantém ativo)
         run: |
-          # Limit=1 garante request mínima. Se a tabela 'indicators' não
-          # existir ainda, troca por qualquer outra que exista.
+          # Limit=1 garante request mínima. Usa 'membros', que existe
+          # de fato no schema e tem policy de leitura pública.
           HTTP=$(curl -s -o /tmp/resp.json -w "%{http_code}" \
-            "$SUPABASE_URL/rest/v1/indicators?select=name&limit=1" \
+            "$SUPABASE_URL/rest/v1/membros?select=nome&limit=1" \
             -H "apikey: $SUPABASE_ANON_KEY" \
             -H "Authorization: Bearer $SUPABASE_ANON_KEY")
           echo "HTTP: $HTTP"
