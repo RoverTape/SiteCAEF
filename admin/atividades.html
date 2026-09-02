@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>CAEF · Admin · Atividades</title>
+  <link rel="stylesheet" href="shared/styles.css" />
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="shared/config.js"></script>
+  <script src="shared/components.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script>
+(function() {
+  var h = React.createElement;
+  var useState = React.useState;
+  var useEffect = React.useEffect;
+  var useCallback = React.useCallback;
+
+  var TABLE = 'atividades';
+  var PK = 'id_atividade';
+
+  var TIPOS = [
+    { v: 'liga',           label: 'Liga' },
+    { v: 'monitoria',      label: 'Monitoria' },
+    { v: 'projeto_social', label: 'Projeto Social' },
+    { v: 'extensao',       label: 'Extensão' }
+  ];
+
+  function labelTipo(t) {
+    for (var i = 0; i < TIPOS.length; i++) if (TIPOS[i].v === t) return TIPOS[i].label;
+    return t;
+  }
+
+  function AtividadesPage() {
+    var sessionState = useState(null); var session = sessionState[0]; var setSession = sessionState[1];
+    var rowsState = useState(null);    var rows = rowsState[0];       var setRows = rowsState[1];
+    var editingState = useState(null); var editing = editingState[0]; var setEditing = editingState[1];
+    var buscaState = useState('');     var busca = buscaState[0];     var setBusca = buscaState[1];
+
+    var load = useCallback(function() {
+      setRows(null);
+      window.sb.from(TABLE).select('*').order('atualizado_em', { ascending: false }).then(function(res) {
+        if (res.error) { window.toast('Erro: ' + res.error.message, 'err'); setRows([]); return; }
+        setRows(res.data || []);
+      });
+    }, []);
+
+    useEffect(function() {
+      window.requireAuth().then(function(s) {
+        if (s) { setSession(s); load(); }
+      });
+    }, []);
+
+    function remove(row) {
+      if (!confirm('Apagar atividade "' + row.titulo + '"?')) return;
+      window.sb.from(TABLE).delete().eq(PK, row[PK]).then(function(res) {
+        if (res.error) { window.toast('Erro: ' + res.error.message, 'err'); return; }
+        window.toast('Apagado', 'ok'); load();
+      });
+    }
+
+    function duplicar(row) {
+      var copia = Object.assign({}, row);
+      delete copia[PK];
+      delete copia.criado_em;
+      delete copia.atualizado_em;
+      copia.titulo = 'Cópia de ' + copia.titulo;
+      setEditing(copia);
+    }
+
+    if (!session) return h('div', { className: 'loading' }, 'Verificando sessão…');
+
+    var filtered = window.filtrarPorBusca(rows || [], busca, ['titulo', 'descricao', 'responsavel', 'local']);
+
+    if (editing) {
+      return h(React.Fragment, null,
+        h(window.AdminTopbar, { user: session.user, current: 'atividades' }),
+        h('div', { className: 'container' },
+          h(AtividadeForm, {
+            record: editing === 'new' ? null : editing,
+            isDuplicate: editing !== 'new' && !editing[PK],
+            onCancel: function() { setEditing(null); },
+            onSaved: function() { setEditing(null); load(); }
+          })
+        )
+      );
+    }
+
+    return h(React.Fragment, null,
+      h(window.AdminTopbar, { user: session.user, current: 'atividades' }),
+      h('div', { className: 'container' },
+        h('div', { className: 'page-head' },
+          h('div', null,
+            h('h1', null, 'Atividades'),
+            h('p', null, 'Liga, monitoria, projetos sociais e extensão. Atividades em destaque aparecem na home.')
+          ),
+          h('button', {
+            className: 'btn primary',
+            onClick: function() { setEditing('new'); }
+          }, '+ Nova atividade')
+        ),
+
+        rows && rows.length > 0 && h(window.SearchBar, {
+          value: busca,
+          onChange: setBusca,
+          placeholder: 'Buscar por título, descrição, responsável…',
+          total: rows.length,
+          filtered: filtered.length,
+          itemLabel: { singular: 'atividade', plural: 'atividades' }
+        }),
+
+        rows === null && h('div', { className: 'loading' }, 'Carregando…'),
+        rows && rows.length === 0 && h('div', { className: 'empty' },
+          h('p', null, 'Nenhuma atividade cadastrada.'),
+          h('button', {
+            className: 'btn primary',
+            onClick: function() { setEditing('new'); }
+          }, 'Criar a primeira')
+        ),
+
+        rows && rows.length > 0 && filtered.length === 0 && h('div', { className: 'empty-search' },
+          h('p', null, 'Nenhuma atividade corresponde à busca "' + busca + '".'),
+          h('button', { className: 'btn', onClick: function() { setBusca(''); } }, 'Limpar busca')
+        ),
+
+        filtered.length > 0 && h('div', { className: 'list' },
+          filtered.map(function(row) {
+            return h('div', { className: 'list-item', key: row[PK] },
+              h('div', {
+                className: 'thumb',
+                style: row.imagem_url ? { backgroundImage: 'url(' + row.imagem_url + ')' } : null
+              }, !row.imagem_url && '★'),
+              h('div', null,
+                h('div', { className: 'title' }, row.titulo),
+                h('div', { className: 'meta' },
+                  h('span', { className: 'pill' }, labelTipo(row.tipo)),
+                  row.local && h('span', null, '📍 ' + row.local),
+                  row.responsavel && h('span', null, row.responsavel),
+                  row.destaque && h('span', { className: 'badge ok' }, '★ destaque'),
+                  !row.ativo && h('span', { className: 'badge warn' }, 'inativo')
+                )
+              ),
+              h('div', { className: 'actions' },
+                h('button', { className: 'btn ghost', onClick: function() { setEditing(row); } }, 'Editar'),
+                h('button', {
+                  className: 'btn ghost duplicate',
+                  onClick: function() { duplicar(row); },
+                  title: 'Criar nova atividade com esses dados'
+                }, 'Duplicar'),
+                h('button', { className: 'btn ghost danger', onClick: function() { remove(row); } }, 'Apagar')
+              )
+            );
+          })
+        )
+      )
+    );
+  }
+
+  function AtividadeForm(props) {
+    var record = props.record;
+    var isDuplicate = props.isDuplicate;
+    var onCancel = props.onCancel;
+    var onSaved = props.onSaved;
+    var isEdit = !!record && !isDuplicate;
+
+    var dataState = useState(record || {
+      tipo: 'liga', titulo: '', descricao: '',
+      responsavel: '', contato: '', local: '',
+      imagem_url: null, link_externo: null,
+      data_inicio: null, data_fim: null,
+      ativo: true, destaque: false
+    });
+    var data = dataState[0]; var setData = dataState[1];
+
+    var errorsState = useState({}); var errors = errorsState[0]; var setErrors = errorsState[1];
+    var savingState = useState(false); var saving = savingState[0]; var setSaving = savingState[1];
+
+    function set(k, v) {
+      setData(function(d) { var n = Object.assign({}, d); n[k] = v; return n; });
+    }
+
+    function save() {
+      var e = {};
+      if (!data.titulo) e.titulo = 'Obrigatório';
+      if (!data.descricao) e.descricao = 'Obrigatório';
+      if (!data.tipo) e.tipo = 'Obrigatório';
+      setErrors(e);
+      if (Object.keys(e).length) return window.toast('Confira os campos obrigatórios', 'err');
+
+      setSaving(true);
+      var payload = Object.assign({}, data);
+      var doSave = function() {
+        delete payload[PK]; delete payload.criado_em; delete payload.atualizado_em;
+        var q = isEdit
+          ? window.sb.from(TABLE).update(payload).eq(PK, record[PK])
+          : window.sb.from(TABLE).insert(payload);
+        q.then(function(res) {
+          setSaving(false);
+          if (res.error) { window.toast('Erro: ' + res.error.message, 'err'); return; }
+          window.toast(isEdit ? 'Atualizado' : (isDuplicate ? 'Duplicado' : 'Criado'), 'ok'); onSaved();
+        });
+      };
+      if (!isEdit) {
+        window.getAdminId().then(function(id) { payload.id_adm = id; doSave(); });
+      } else {
+        doSave();
+      }
+    }
+
+    var titulo = isEdit ? 'Editar' : (isDuplicate ? 'Duplicar' : 'Nova');
+    var subtitulo = isDuplicate
+      ? 'Ajuste o que precisar. A atividade original permanece intocada.'
+      : 'Marque "destaque" para aparecer na home do site.';
+
+    return h(React.Fragment, null,
+      h('div', { className: 'page-head' },
+        h('div', null,
+          h('h1', null, titulo + ' atividade'),
+          h('p', null, subtitulo)
+        )
+      ),
+      h('div', { className: 'form-card' },
+        h('div', { className: 'form-grid' },
+          h('div', { className: 'row-2' },
+            h(window.Field, { label: 'Tipo', required: true },
+              h('select', { value: data.tipo || 'liga',
+                onChange: function(e) { set('tipo', e.target.value); } },
+                TIPOS.map(function(t) { return h('option', { key: t.v, value: t.v }, t.label); })
+              )
+            ),
+            h(window.Field, { label: 'Responsável', hint: 'Nome de quem coordena' },
+              h('input', { type: 'text', value: data.responsavel || '',
+                onChange: function(e) { set('responsavel', e.target.value); } })
+            )
+          ),
+          h(window.Field, { label: 'Título', required: true, error: errors.titulo, full: true },
+            h('input', { type: 'text', value: data.titulo || '',
+              onChange: function(e) { set('titulo', e.target.value); } })
+          ),
+          h(window.Field, { label: 'Descrição', required: true, error: errors.descricao, full: true },
+            h('textarea', { rows: 5, value: data.descricao || '',
+              onChange: function(e) { set('descricao', e.target.value); } })
+          ),
+          h('div', { className: 'row-2' },
+            h(window.Field, { label: 'Local', hint: 'Opcional' },
+              h('input', { type: 'text', value: data.local || '',
+                onChange: function(e) { set('local', e.target.value); } })
+            ),
+            h(window.Field, { label: 'Contato', hint: 'Email ou WhatsApp' },
+              h('input', { type: 'text', value: data.contato || '',
+                onChange: function(e) { set('contato', e.target.value); } })
+            )
+          ),
+          h('div', { className: 'row-2' },
+            h(window.Field, { label: 'Início', hint: 'Opcional' },
+              h('input', { type: 'date', value: data.data_inicio || '',
+                onChange: function(e) { set('data_inicio', e.target.value || null); } })
+            ),
+            h(window.Field, { label: 'Fim', hint: 'Opcional' },
+              h('input', { type: 'date', value: data.data_fim || '',
+                onChange: function(e) { set('data_fim', e.target.value || null); } })
+            )
+          ),
+          h(window.Field, { label: 'Link externo', hint: 'Opcional. Site, Instagram, formulário, etc', full: true },
+            h('input', { type: 'url', placeholder: 'https://…',
+              value: data.link_externo || '',
+              onChange: function(e) { set('link_externo', e.target.value || null); } })
+          ),
+          h(window.Field, { label: 'Imagem', hint: 'Aparece no card', full: true },
+            h(window.ImageUpload, {
+              value: data.imagem_url,
+              onChange: function(v) { set('imagem_url', v); },
+              pasta: 'atividades'
+            })
+          ),
+          h('div', { className: 'row-2' },
+            h(window.Field, { label: 'Ativo' },
+              h('label', { className: 'check' },
+                h('input', { type: 'checkbox', checked: !!data.ativo,
+                  onChange: function(e) { set('ativo', e.target.checked); } }),
+                h('span', null, data.ativo ? 'Sim, visível no site' : 'Não, oculto')
+              )
+            ),
+            h(window.Field, { label: 'Destaque', hint: 'Aparece em destaque na home' },
+              h('label', { className: 'check' },
+                h('input', { type: 'checkbox', checked: !!data.destaque,
+                  onChange: function(e) { set('destaque', e.target.checked); } }),
+                h('span', null, data.destaque ? '★ Em destaque na home' : 'Não está em destaque')
+              )
+            )
+          )
+        ),
+        h('div', { className: 'form-actions' },
+          h('button', { className: 'btn', onClick: onCancel, disabled: saving }, 'Cancelar'),
+          h('button', { className: 'btn primary', onClick: save, disabled: saving },
+            saving ? 'Salvando…' : (isEdit ? 'Salvar' : 'Criar')
+          )
+        )
+      )
+    );
+  }
+
+  ReactDOM.createRoot(document.getElementById('root')).render(h(AtividadesPage));
+})();
+</script>
+</body>
+</html>

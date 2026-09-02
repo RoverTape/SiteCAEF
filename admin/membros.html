@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>CAEF · Admin · Membros</title>
+  <link rel="stylesheet" href="shared/styles.css" />
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="shared/config.js"></script>
+  <script src="shared/components.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script>
+(function() {
+  var h = React.createElement;
+  var useState = React.useState;
+  var useEffect = React.useEffect;
+  var useCallback = React.useCallback;
+
+  var TABLE = 'membros';
+  var PK = 'id_membro';
+
+  function MembrosPage() {
+    var sessionState = useState(null); var session = sessionState[0]; var setSession = sessionState[1];
+    var rowsState = useState(null);    var rows = rowsState[0];       var setRows = rowsState[1];
+    var editingState = useState(null); var editing = editingState[0]; var setEditing = editingState[1];
+    var buscaState = useState('');     var busca = buscaState[0];     var setBusca = buscaState[1];
+
+    var load = useCallback(function() {
+      setRows(null);
+      window.sb.from(TABLE).select('*').order('posicao').then(function(res) {
+        if (res.error) { window.toast('Erro: ' + res.error.message, 'err'); setRows([]); return; }
+        setRows(res.data || []);
+      });
+    }, []);
+
+    useEffect(function() {
+      window.requireAuth().then(function(s) {
+        if (s) { setSession(s); load(); }
+      });
+    }, []);
+
+    function remove(row) {
+      if (!confirm('Apagar membro "' + row.nome + '"?')) return;
+      window.sb.from(TABLE).delete().eq(PK, row[PK]).then(function(res) {
+        if (res.error) { window.toast('Erro: ' + res.error.message, 'err'); return; }
+        window.toast('Apagado', 'ok'); load();
+      });
+    }
+
+    // NOVO: duplica um item — abre o formulário com dados pré-preenchidos
+    function duplicar(row) {
+      var copia = Object.assign({}, row);
+      delete copia[PK];          // sem ID (vai ser novo)
+      delete copia.criado_em;    // sem data (vai ser agora)
+      copia.nome = 'Cópia de ' + copia.nome;
+      copia.posicao = (row.posicao || 0) + 1;
+      setEditing(copia);
+    }
+
+    if (!session) return h('div', { className: 'loading' }, 'Verificando sessão…');
+
+    if (editing) {
+      return h(React.Fragment, null,
+        h(window.AdminTopbar, { user: session.user, current: 'membros' }),
+        h('div', { className: 'container' },
+          h(MembroForm, {
+            record: editing === 'new' ? null : editing,
+            isDuplicate: editing !== 'new' && !editing[PK],
+            onCancel: function() { setEditing(null); },
+            onSaved: function() { setEditing(null); load(); }
+          })
+        )
+      );
+    }
+
+    var filtered = window.filtrarPorBusca(rows || [], busca, ['nome', 'cargo', 'email']);
+
+    return h(React.Fragment, null,
+      h(window.AdminTopbar, { user: session.user, current: 'membros' }),
+      h('div', { className: 'container' },
+        h('div', { className: 'page-head' },
+          h('div', null,
+            h('h1', null, 'Membros'),
+            h('p', null, 'Diretoria do CAEF. Ordem de exibição no campo "posição".')
+          ),
+          h('button', {
+            className: 'btn primary',
+            onClick: function() { setEditing('new'); }
+          }, '+ Novo membro')
+        ),
+
+        // SearchBar (só aparece quando tem dados)
+        rows && rows.length > 0 && h(window.SearchBar, {
+          value: busca,
+          onChange: setBusca,
+          placeholder: 'Buscar por nome, cargo ou email…',
+          total: rows.length,
+          filtered: filtered.length,
+          itemLabel: { singular: 'membro', plural: 'membros' }
+        }),
+
+        rows === null && h('div', { className: 'loading' }, 'Carregando…'),
+        rows && rows.length === 0 && h('div', { className: 'empty' },
+          h('p', null, 'Nenhum membro cadastrado.'),
+          h('button', {
+            className: 'btn primary',
+            onClick: function() { setEditing('new'); }
+          }, 'Cadastrar o primeiro')
+        ),
+
+        // Mensagem quando busca não encontrou
+        rows && rows.length > 0 && filtered.length === 0 && h('div', { className: 'empty-search' },
+          h('p', null, 'Nenhum membro corresponde à busca "' + busca + '".'),
+          h('button', {
+            className: 'btn',
+            onClick: function() { setBusca(''); }
+          }, 'Limpar busca')
+        ),
+
+        filtered.length > 0 && h('div', { className: 'list' },
+          filtered.map(function(row) {
+            return h('div', { className: 'list-item', key: row[PK] },
+              h('div', {
+                className: 'thumb',
+                style: row.foto_url ? { backgroundImage: 'url(' + row.foto_url + ')' } : null
+              }, !row.foto_url && row.inicial),
+              h('div', null,
+                h('div', { className: 'title' }, row.nome),
+                h('div', { className: 'meta' },
+                  h('span', { className: 'pill' }, row.cargo),
+                  h('span', null, 'posição: ' + row.posicao),
+                  !row.ativo && h('span', { className: 'badge warn' }, 'inativo')
+                )
+              ),
+              h('div', { className: 'actions' },
+                h('button', {
+                  className: 'btn ghost',
+                  onClick: function() { setEditing(row); }
+                }, 'Editar'),
+                h('button', {
+                  className: 'btn ghost duplicate',
+                  onClick: function() { duplicar(row); },
+                  title: 'Criar novo membro com os dados deste'
+                }, 'Duplicar'),
+                h('button', {
+                  className: 'btn ghost danger',
+                  onClick: function() { remove(row); }
+                }, 'Apagar')
+              )
+            );
+          })
+        )
+      )
+    );
+  }
+
+  function MembroForm(props) {
+    var record = props.record;
+    var isDuplicate = props.isDuplicate;
+    var onCancel = props.onCancel;
+    var onSaved = props.onSaved;
+    var isEdit = !!record && !isDuplicate;
+
+    var dataState = useState(record || {
+      nome: '', cargo: '', inicial: '', email: '', linkedin: '',
+      foto_url: null, posicao: 0, ativo: true
+    });
+    var data = dataState[0]; var setData = dataState[1];
+
+    var errorsState = useState({});
+    var errors = errorsState[0]; var setErrors = errorsState[1];
+
+    var savingState = useState(false);
+    var saving = savingState[0]; var setSaving = savingState[1];
+
+    function set(k, v) {
+      setData(function(d) { var n = Object.assign({}, d); n[k] = v; return n; });
+    }
+
+    function save() {
+      var e = {};
+      if (!data.nome) e.nome = 'Obrigatório';
+      if (!data.cargo) e.cargo = 'Obrigatório';
+      if (!data.inicial) e.inicial = 'Obrigatório';
+      setErrors(e);
+      if (Object.keys(e).length) return window.toast('Confira os campos obrigatórios', 'err');
+
+      setSaving(true);
+      var payload = Object.assign({}, data);
+      var doSave = function() {
+        delete payload[PK]; delete payload.criado_em;
+        var q = isEdit
+          ? window.sb.from(TABLE).update(payload).eq(PK, record[PK])
+          : window.sb.from(TABLE).insert(payload);
+        q.then(function(res) {
+          setSaving(false);
+          if (res.error) { window.toast('Erro: ' + res.error.message, 'err'); return; }
+          window.toast(isEdit ? 'Atualizado' : (isDuplicate ? 'Duplicado' : 'Criado'), 'ok'); onSaved();
+        });
+      };
+
+      if (!isEdit) {
+        window.getAdminId().then(function(id) { payload.id_adm = id; doSave(); });
+      } else {
+        doSave();
+      }
+    }
+
+    var titulo = isEdit ? 'Editar' : (isDuplicate ? 'Duplicar' : 'Novo');
+    var subtitulo = isDuplicate
+      ? 'Ajuste o que precisar. O item original permanece intocado.'
+      : 'Preencha as informações do membro da gestão.';
+
+    return h(React.Fragment, null,
+      h('div', { className: 'page-head' },
+        h('div', null,
+          h('h1', null, titulo + ' membro'),
+          h('p', null, subtitulo)
+        )
+      ),
+      h('div', { className: 'form-card' },
+        h('div', { className: 'form-grid' },
+          h('div', { className: 'row-2' },
+            h(window.Field, { label: 'Nome completo', required: true, error: errors.nome },
+              h('input', { type: 'text', value: data.nome || '',
+                onChange: function(e) { set('nome', e.target.value); } })
+            ),
+            h(window.Field, { label: 'Cargo', required: true, hint: 'Ex: Presidência, Pesquisa', error: errors.cargo },
+              h('input', { type: 'text', value: data.cargo || '',
+                onChange: function(e) { set('cargo', e.target.value); } })
+            )
+          ),
+          h('div', { className: 'row-3' },
+            h(window.Field, { label: 'Inicial', required: true, hint: '1 ou 2 letras', error: errors.inicial },
+              h('input', { type: 'text', maxLength: 2, value: data.inicial || '',
+                onChange: function(e) { set('inicial', e.target.value.toUpperCase()); } })
+            ),
+            h(window.Field, { label: 'Posição', hint: 'Ordem de exibição' },
+              h('input', { type: 'number', value: data.posicao || 0,
+                onChange: function(e) { set('posicao', Number(e.target.value)); } })
+            ),
+            h(window.Field, { label: 'Ativo' },
+              h('label', { className: 'check' },
+                h('input', { type: 'checkbox', checked: !!data.ativo,
+                  onChange: function(e) { set('ativo', e.target.checked); } }),
+                h('span', null, data.ativo ? 'Sim, aparece no site' : 'Não, ocultar do site')
+              )
+            )
+          ),
+          h(window.Field, { label: 'LinkedIn', hint: 'Opcional. Cole a URL completa do perfil, ex: https://www.linkedin.com/in/fulano', full: true },
+            h('input', { type: 'url', value: data.linkedin || '',
+              placeholder: 'https://www.linkedin.com/in/…',
+              onChange: function(e) { set('linkedin', e.target.value); } })
+          ),
+          h(window.Field, { label: 'Foto', hint: 'Opcional', full: true },
+            h(window.ImageUpload, {
+              value: data.foto_url,
+              onChange: function(v) { set('foto_url', v); },
+              pasta: 'membros'
+            })
+          )
+        ),
+        h('div', { className: 'form-actions' },
+          h('button', { className: 'btn', onClick: onCancel, disabled: saving }, 'Cancelar'),
+          h('button', { className: 'btn primary', onClick: save, disabled: saving },
+            saving ? 'Salvando…' : (isEdit ? 'Salvar' : 'Criar')
+          )
+        )
+      )
+    );
+  }
+
+  ReactDOM.createRoot(document.getElementById('root')).render(h(MembrosPage));
+})();
+</script>
+</body>
+</html>

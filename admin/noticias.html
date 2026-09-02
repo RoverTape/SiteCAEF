@@ -1,0 +1,703 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>CAEF · Admin · Notícias</title>
+    <link rel="stylesheet" href="shared/styles.css" />
+    <script
+      crossorigin
+      src="https://unpkg.com/react@18/umd/react.production.min.js"
+    ></script>
+    <script
+      crossorigin
+      src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"
+    ></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="shared/config.js"></script>
+    <script src="shared/components.js"></script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script>
+      (function () {
+        var h = React.createElement;
+        var useState = React.useState;
+        var useEffect = React.useEffect;
+        var useCallback = React.useCallback;
+
+        var TABLE = "noticias";
+        var PK = "id_not";
+
+        // Categorias — adicionada "cobertura_evento"
+        var CATEGORIAS = [
+          { v: "noticia", label: "Notícia" },
+          { v: "blog", label: "Blog" },
+          { v: "artigo", label: "Coluna de Opinião" }, // renomeado no site
+          { v: "resenha", label: "Resenha" },
+          { v: "newsletter", label: "Newsletter" },
+          { v: "cobertura_evento", label: "Cobertura de Evento" }, // NOVO
+        ];
+
+        // Categorias que podem ter PDF externo
+        var CATEGORIAS_COM_PDF = ["noticia", "artigo", "resenha", "newsletter"];
+
+        // Categoria que tem galeria
+        function temGaleria(cat) {
+          return cat === "cobertura_evento";
+        }
+
+        function labelCategoria(v) {
+          for (var i = 0; i < CATEGORIAS.length; i++)
+            if (CATEGORIAS[i].v === v) return CATEGORIAS[i].label;
+          return v;
+        }
+
+        function NoticiasPage() {
+          var sessionState = useState(null);
+          var session = sessionState[0];
+          var setSession = sessionState[1];
+          var rowsState = useState(null);
+          var rows = rowsState[0];
+          var setRows = rowsState[1];
+          var editingState = useState(null);
+          var editing = editingState[0];
+          var setEditing = editingState[1];
+          var buscaState = useState("");
+          var busca = buscaState[0];
+          var setBusca = buscaState[1];
+          var filtroState = useState("todos");
+          var filtro = filtroState[0];
+          var setFiltro = filtroState[1];
+
+          var load = useCallback(function () {
+            setRows(null);
+            window.sb
+              .from(TABLE)
+              .select("*")
+              .order("data_publi", { ascending: false })
+              .then(function (res) {
+                if (res.error) {
+                  window.toast("Erro: " + res.error.message, "err");
+                  setRows([]);
+                  return;
+                }
+                setRows(res.data || []);
+              });
+          }, []);
+
+          useEffect(function () {
+            window.requireAuth().then(function (s) {
+              if (s) {
+                setSession(s);
+                load();
+              }
+            });
+          }, []);
+
+          function remove(row) {
+            if (!confirm('Apagar "' + row.titulo + '"?')) return;
+            window.sb
+              .from(TABLE)
+              .delete()
+              .eq(PK, row[PK])
+              .then(function (res) {
+                if (res.error) {
+                  window.toast("Erro: " + res.error.message, "err");
+                  return;
+                }
+                window.toast("Apagado", "ok");
+                load();
+              });
+          }
+
+          function duplicar(row) {
+            var copia = Object.assign({}, row);
+            delete copia[PK];
+            delete copia.data_cria;
+            copia.titulo = "Cópia de " + copia.titulo;
+            copia.data_publi = new Date().toISOString();
+            setEditing(copia);
+          }
+
+          if (!session)
+            return h("div", { className: "loading" }, "Verificando sessão…");
+
+          var filtradosPorCat = (rows || []).filter(function (r) {
+            return filtro === "todos" || r.categoria === filtro;
+          });
+          var filtered = window.filtrarPorBusca(filtradosPorCat, busca, [
+            "titulo",
+            "conteudo",
+          ]);
+
+          if (editing) {
+            return h(
+              React.Fragment,
+              null,
+              h(window.AdminTopbar, {
+                user: session.user,
+                current: "noticias",
+              }),
+              h(
+                "div",
+                { className: "container" },
+                h(NoticiaForm, {
+                  record: editing === "new" ? null : editing,
+                  isDuplicate: editing !== "new" && !editing[PK],
+                  onCancel: function () {
+                    setEditing(null);
+                  },
+                  onSaved: function () {
+                    setEditing(null);
+                    load();
+                  },
+                }),
+              ),
+            );
+          }
+
+          return h(
+            React.Fragment,
+            null,
+            h(window.AdminTopbar, { user: session.user, current: "noticias" }),
+            h(
+              "div",
+              { className: "container" },
+              h(
+                "div",
+                { className: "page-head" },
+                h(
+                  "div",
+                  null,
+                  h("h1", null, "Notícias e Publicações"),
+                  h(
+                    "p",
+                    null,
+                    "Notícias, blog, colunas, resenhas, newsletter e cobertura de eventos.",
+                  ),
+                ),
+                h(
+                  "button",
+                  {
+                    className: "btn primary",
+                    onClick: function () {
+                      setEditing("new");
+                    },
+                  },
+                  "+ Nova publicação",
+                ),
+              ),
+
+              // Filtro por categoria
+              h(
+                "div",
+                {
+                  style: {
+                    display: "flex",
+                    gap: 8,
+                    marginBottom: 16,
+                    flexWrap: "wrap",
+                  },
+                },
+                h(
+                  "button",
+                  {
+                    className: "btn " + (filtro === "todos" ? "primary" : ""),
+                    onClick: function () {
+                      setFiltro("todos");
+                    },
+                    style: { fontSize: 13, padding: "6px 12px" },
+                  },
+                  "Todos",
+                ),
+                CATEGORIAS.map(function (c) {
+                  return h(
+                    "button",
+                    {
+                      key: c.v,
+                      className: "btn " + (filtro === c.v ? "primary" : ""),
+                      onClick: function () {
+                        setFiltro(c.v);
+                      },
+                      style: { fontSize: 13, padding: "6px 12px" },
+                    },
+                    c.label,
+                  );
+                }),
+              ),
+
+              rows &&
+                rows.length > 0 &&
+                h(window.SearchBar, {
+                  value: busca,
+                  onChange: setBusca,
+                  placeholder: "Buscar por título ou conteúdo…",
+                  total: filtradosPorCat.length,
+                  filtered: filtered.length,
+                  itemLabel: { singular: "publicação", plural: "publicações" },
+                }),
+
+              rows === null &&
+                h("div", { className: "loading" }, "Carregando…"),
+              rows &&
+                filtered.length === 0 &&
+                rows.length === 0 &&
+                h(
+                  "div",
+                  { className: "empty" },
+                  h("p", null, "Nenhuma publicação cadastrada."),
+                  h(
+                    "button",
+                    {
+                      className: "btn primary",
+                      onClick: function () {
+                        setEditing("new");
+                      },
+                    },
+                    "Criar a primeira",
+                  ),
+                ),
+
+              rows &&
+                rows.length > 0 &&
+                filtered.length === 0 &&
+                h(
+                  "div",
+                  { className: "empty-search" },
+                  h(
+                    "p",
+                    null,
+                    busca
+                      ? 'Nenhuma publicação corresponde à busca "' +
+                          busca +
+                          '".'
+                      : "Nenhuma publicação nesta categoria.",
+                  ),
+                  busca &&
+                    h(
+                      "button",
+                      {
+                        className: "btn",
+                        onClick: function () {
+                          setBusca("");
+                        },
+                      },
+                      "Limpar busca",
+                    ),
+                ),
+
+              filtered.length > 0 &&
+                h(
+                  "div",
+                  { className: "list" },
+                  filtered.map(function (row) {
+                    var galeriaLen = (row.galeria_fotos || []).length;
+                    return h(
+                      "div",
+                      { className: "list-item", key: row[PK] },
+                      h(
+                        "div",
+                        {
+                          className: "thumb",
+                          style: row.imagem_url
+                            ? { backgroundImage: "url(" + row.imagem_url + ")" }
+                            : null,
+                        },
+                        !row.imagem_url && "—",
+                      ),
+                      h(
+                        "div",
+                        null,
+                        h("div", { className: "title" }, row.titulo),
+                        h(
+                          "div",
+                          { className: "meta" },
+                          h(
+                            "span",
+                            { className: "pill" },
+                            labelCategoria(row.categoria),
+                          ),
+                          h("span", null, window.fmtDateBR(row.data_publi)),
+                          row.pdf_url &&
+                            h("span", { className: "badge ok" }, "📄 PDF"),
+                          galeriaLen > 0 &&
+                            h(
+                              "span",
+                              { className: "badge ok" },
+                              "📸 " + galeriaLen + " fotos",
+                            ),
+                        ),
+                      ),
+                      h(
+                        "div",
+                        { className: "actions" },
+                        h(
+                          "button",
+                          {
+                            className: "btn ghost",
+                            onClick: function () {
+                              setEditing(row);
+                            },
+                          },
+                          "Editar",
+                        ),
+                        h(
+                          "button",
+                          {
+                            className: "btn ghost duplicate",
+                            onClick: function () {
+                              duplicar(row);
+                            },
+                            title: "Criar cópia dessa publicação",
+                          },
+                          "Duplicar",
+                        ),
+                        h(
+                          "button",
+                          {
+                            className: "btn ghost danger",
+                            onClick: function () {
+                              remove(row);
+                            },
+                          },
+                          "Apagar",
+                        ),
+                      ),
+                    );
+                  }),
+                ),
+            ),
+          );
+        }
+
+        function NoticiaForm(props) {
+          var record = props.record;
+          var isDuplicate = props.isDuplicate;
+          var onCancel = props.onCancel;
+          var onSaved = props.onSaved;
+          var isEdit = !!record && !isDuplicate;
+
+          var dataState = useState(
+            record || {
+              categoria: "noticia",
+              titulo: "",
+              conteudo: "",
+              imagem_url: null,
+              data_publi: new Date().toISOString(),
+              pdf_url: null,
+              galeria_fotos: null,
+            },
+          );
+          var data = dataState[0];
+          var setData = dataState[1];
+
+          var errorsState = useState({});
+          var errors = errorsState[0];
+          var setErrors = errorsState[1];
+          var savingState = useState(false);
+          var saving = savingState[0];
+          var setSaving = savingState[1];
+
+          function set(k, v) {
+            setData(function (d) {
+              var n = Object.assign({}, d);
+              n[k] = v;
+              return n;
+            });
+          }
+
+          // Ao mudar categoria, limpa PDF se a nova cat não suporta
+          function mudarCategoria(nova) {
+            setData(function (d) {
+              var n = Object.assign({}, d);
+              n.categoria = nova;
+              if (CATEGORIAS_COM_PDF.indexOf(nova) === -1) n.pdf_url = null;
+              if (!temGaleria(nova)) n.galeria_fotos = null;
+              return n;
+            });
+          }
+
+          function save() {
+            var e = {};
+            if (!data.titulo) e.titulo = "Obrigatório";
+            if (!data.conteudo) e.conteudo = "Obrigatório";
+            if (!data.data_publi) e.data_publi = "Obrigatório";
+            setErrors(e);
+            if (Object.keys(e).length)
+              return window.toast("Confira os campos obrigatórios", "err");
+
+            setSaving(true);
+            var payload = Object.assign({}, data);
+            delete payload[PK];
+            delete payload.data_cria;
+
+            function finalizar(res) {
+              setSaving(false);
+              if (res.error) {
+                window.toast("Erro: " + res.error.message, "err");
+                return;
+              }
+              window.toast(
+                isEdit
+                  ? "Atualizado"
+                  : isDuplicate
+                    ? "Duplicata salva"
+                    : "Publicado",
+                "ok",
+              );
+              onSaved();
+            }
+
+            if (isEdit) {
+              window.sb
+                .from(TABLE)
+                .update(payload)
+                .eq(PK, record[PK])
+                .then(finalizar);
+            } else {
+              window.getAdminId().then(function (id) {
+                payload.id_adm = id;
+                window.sb.from(TABLE).insert(payload).then(finalizar);
+              });
+            }
+          }
+
+          var mostrarPDF = CATEGORIAS_COM_PDF.indexOf(data.categoria) !== -1;
+          var mostrarGaleria = temGaleria(data.categoria);
+          var titulo = isEdit ? "Editar" : isDuplicate ? "Duplicar" : "Nova";
+
+          // Descrição contextual do campo Conteúdo baseado na categoria
+          var hintConteudo =
+            "Texto completo da publicação. Quebras de linha são preservadas.";
+          if (mostrarPDF && data.pdf_url) {
+            hintConteudo =
+              "Como você anexou um PDF, esse texto vira o LEAD/RESUMO introdutório que aparece antes do PDF no site. 2-3 parágrafos.";
+          } else if (mostrarGaleria) {
+            hintConteudo =
+              "Texto sobre o evento coberto. Aparecerá acima da galeria de fotos.";
+          }
+
+          return h(
+            React.Fragment,
+            null,
+            h(
+              "div",
+              { className: "page-head" },
+              h(
+                "div",
+                null,
+                h("h1", null, titulo + " publicação"),
+                h(
+                  "p",
+                  null,
+                  isDuplicate
+                    ? "Ajuste o que precisar. A duplicata começa em rascunho."
+                    : "Selecione a categoria e preencha o conteúdo.",
+                ),
+              ),
+            ),
+            h(
+              "div",
+              { className: "form-card" },
+              h(
+                "div",
+                { className: "form-grid" },
+                h(
+                  "div",
+                  { className: "row-2" },
+                  h(
+                    window.Field,
+                    {
+                      label: "Categoria",
+                      required: true,
+                      hint: "Define onde aparece no site",
+                    },
+                    h(
+                      "select",
+                      {
+                        value: data.categoria || "noticia",
+                        onChange: function (e) {
+                          mudarCategoria(e.target.value);
+                        },
+                      },
+                      CATEGORIAS.map(function (c) {
+                        return h("option", { key: c.v, value: c.v }, c.label);
+                      }),
+                    ),
+                  ),
+                  h(
+                    window.Field,
+                    {
+                      label: "Data de publicação",
+                      required: true,
+                      error: errors.data_publi,
+                    },
+                    h("input", {
+                      type: "datetime-local",
+                      value: data.data_publi
+                        ? new Date(data.data_publi).toISOString().slice(0, 16)
+                        : "",
+                      onChange: function (e) {
+                        set(
+                          "data_publi",
+                          e.target.value
+                            ? new Date(e.target.value).toISOString()
+                            : null,
+                        );
+                      },
+                    }),
+                  ),
+                ),
+                h(
+                  window.Field,
+                  {
+                    label: "Título",
+                    required: true,
+                    error: errors.titulo,
+                    full: true,
+                  },
+                  h("input", {
+                    type: "text",
+                    value: data.titulo || "",
+                    onChange: function (e) {
+                      set("titulo", e.target.value);
+                    },
+                  }),
+                ),
+                h(
+                  window.Field,
+                  {
+                    label: "Imagem de capa",
+                    hint: "Aparece no card do site e topo da publicação",
+                    full: true,
+                  },
+                  h(window.ImageUpload, {
+                    value: data.imagem_url,
+                    onChange: function (v) {
+                      set("imagem_url", v);
+                    },
+                    pasta: "noticias",
+                  }),
+                ),
+
+                // Campo PDF (só pra categorias específicas)
+                mostrarPDF &&
+                  h(
+                    window.Field,
+                    {
+                      label: "Link do PDF (opcional)",
+                      hint: "Se preenchido, o site mostra o PDF embutido com layout de revista. Use link do Google Drive ou OneDrive.",
+                      full: true,
+                    },
+                    h("input", {
+                      type: "url",
+                      placeholder: "https://drive.google.com/file/d/…/view",
+                      value: data.pdf_url || "",
+                      onChange: function (e) {
+                        set("pdf_url", e.target.value || null);
+                      },
+                    }),
+                    h(
+                      "div",
+                      {
+                        style: {
+                          fontSize: 12,
+                          color: "var(--muted)",
+                          marginTop: 6,
+                          background: "var(--paper-2)",
+                          padding: 10,
+                          borderRadius: 6,
+                        },
+                      },
+                      "💡 ",
+                      h("strong", null, "Como obter o link (Google Drive):"),
+                      ' No Google Drive, clique com botão direito no PDF → Compartilhar → mude para "Qualquer um com o link" → copie o link e cole aqui. O site vai transformar automaticamente pra exibir o PDF embutido na página.',
+                    ),
+                    h(
+                      "div",
+                      {
+                        style: {
+                          fontSize: 12,
+                          color: "var(--muted)",
+                          marginTop: 6,
+                          background: "var(--paper-2)",
+                          padding: 10,
+                          borderRadius: 6,
+                        },
+                      },
+                      "☁️ ",
+                      h("strong", null, "Como obter o link (OneDrive):"),
+                      ' Botão direito no PDF → Compartilhar → "Qualquer pessoa com o link" → copiar e colar aqui. Se o TI da faculdade bloquear, o site mostra automaticamente um botão de ver online em vez do PDF embutido.',
+                    ),
+                  ),
+
+                // Campo Galeria (só pra cobertura de evento)
+                mostrarGaleria &&
+                  h(
+                    window.Field,
+                    {
+                      label: "Galeria de fotos do evento",
+                      hint: "Escolha múltiplas fotos. Elas aparecem em grade abaixo do texto no site, com lightbox ao clicar.",
+                      full: true,
+                    },
+                    h(window.GalleryUpload, {
+                      value: data.galeria_fotos || [],
+                      onChange: function (v) {
+                        set("galeria_fotos", v.length > 0 ? v : null);
+                      },
+                      pasta: "galeria",
+                    }),
+                  ),
+
+                h(
+                  window.Field,
+                  {
+                    label:
+                      mostrarPDF && data.pdf_url ? "Lead / Resumo" : "Conteúdo",
+                    required: true,
+                    error: errors.conteudo,
+                    full: true,
+                    hint: hintConteudo,
+                  },
+                  h("textarea", {
+                    rows: mostrarPDF && data.pdf_url ? 6 : 12,
+                    value: data.conteudo || "",
+                    onChange: function (e) {
+                      set("conteudo", e.target.value);
+                    },
+                    style: {
+                      minHeight: mostrarPDF && data.pdf_url ? 120 : 200,
+                    },
+                  }),
+                ),
+              ),
+              h(
+                "div",
+                { className: "form-actions" },
+                h(
+                  "button",
+                  { className: "btn", onClick: onCancel, disabled: saving },
+                  "Cancelar",
+                ),
+                h(
+                  "button",
+                  { className: "btn primary", onClick: save, disabled: saving },
+                  saving
+                    ? "Salvando…"
+                    : isEdit
+                      ? "Salvar alterações"
+                      : "Publicar",
+                ),
+              ),
+            ),
+          );
+        }
+
+        ReactDOM.createRoot(document.getElementById("root")).render(
+          h(NoticiasPage),
+        );
+      })();
+    </script>
+  </body>
+</html>

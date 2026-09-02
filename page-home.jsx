@@ -1,5 +1,7 @@
 // Home page — hero variants + destaques + eventos + ticker
 
+const HOME_NEWSLETTER_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSdNpRsogQ2dOqKcYEI9A8alkZfgcJbBa2VHX9lpo8_dM3MgNw/viewform?utm_source=ig&utm_medium=social&utm_content=link_in_bio&fbclid=PAcGRvZgJleHRuA2FlbQIxMQBzcnRjBmFwcF9pZA81NjcwNjczNDMzNTI0MjcAAadPMkxvM8IpWLvuaYVtIusqWUmblWMlDuPR8-IZG5kmJYGCaWNm9u8VzF7_2g_aem_v5AqtjFwaqbubSxYe5Ijhg';
+
 function Hero({ variant, setPage }) {
   if (variant === 'editorial') return <HeroEditorial setPage={setPage} />;
   if (variant === 'data') return <HeroData setPage={setPage} />;
@@ -151,12 +153,14 @@ function HeroData({ setPage }) {
 }
 
 function StatsRow() {
+  const stats = window.CAEF_STATS || { publicacoes: 0, newsletters: 0, eventos: 0, fundacao: 2008 };
   const wrapRef = React.useRef(null);
+
   React.useEffect(() => {
     if (!wrapRef.current) return;
     const cells = wrapRef.current.querySelectorAll('.stat-cell');
     const io = new IntersectionObserver((entries) => {
-      entries.forEach((e, i) => {
+      entries.forEach((e) => {
         if (e.isIntersecting) {
           cells.forEach((c, idx) => setTimeout(() => c.classList.add('visible'), idx * 120));
           io.disconnect();
@@ -166,45 +170,69 @@ function StatsRow() {
     io.observe(wrapRef.current);
     return () => io.disconnect();
   }, []);
+
   return (
     <section className="container section-tight">
       <div className="stat-row" ref={wrapRef}>
-        <div className="stat-cell fadein"><div className="stat-num"><CountStat to={148} /></div><div className="stat-lbl">Produções publicadas</div></div>
-        <div className="stat-cell fadein delay-1"><div className="stat-num"><CountStat to={24} /></div><div className="stat-lbl">Edições da Newsletter</div></div>
-        <div className="stat-cell fadein delay-2"><div className="stat-num"><CountStat to={62} /></div><div className="stat-lbl">Eventos realizados</div></div>
-        <div className="stat-cell fadein delay-3"><div className="stat-num"><CountStat to={2008} /></div><div className="stat-lbl">Fundado em</div></div>
+        <div className="stat-cell fadein">
+          <div className="stat-num"><CountStat to={stats.publicacoes} /></div>
+          <div className="stat-lbl">
+            {stats.publicacoes === 1 ? 'Publicação' : 'Publicações'}
+          </div>
+        </div>
+        <div className="stat-cell fadein delay-1">
+          <div className="stat-num"><CountStat to={stats.newsletters} /></div>
+          <div className="stat-lbl">
+            {stats.newsletters === 1 ? 'Edição da Newsletter' : 'Edições da Newsletter'}
+          </div>
+        </div>
+        <div className="stat-cell fadein delay-2">
+          <div className="stat-num"><CountStat to={stats.eventos} /></div>
+          <div className="stat-lbl">
+            {stats.eventos === 1 ? 'Evento realizado' : 'Eventos realizados'}
+          </div>
+        </div>
+        <div className="stat-cell fadein delay-3">
+          <div className="stat-num"><CountStat to={stats.fundacao} /></div>
+          <div className="stat-lbl">Fundado em</div>
+        </div>
       </div>
     </section>
   );
 }
 
-function HighlightsHome({ setPage }) {
-  const { productions } = window.CAEF_DATA;
+function HighlightsHome({ setPage, abrirDetalhe }) {
+  const { destaquesRecentes, productions } = window.CAEF_DATA;
+
+  const destaques = destaquesRecentes && destaquesRecentes.length > 0
+    ? destaquesRecentes
+    : (productions || []).slice(0, 3);
+
   return (
     <section className="container section">
       <div className="section-head">
         <div>
           <span className="eyebrow">Destaques Recentes</span>
-          <h2 className="section-head-title fadein visible">Últimas produções acadêmicas e artigos</h2>
+          <h2 className="section-head-title fadein visible">Últimos conteúdos do CAEF</h2>
         </div>
-        <a href="#" className="section-head-link" onClick={(e) => { e.preventDefault(); setPage('producoes'); }}>
-          Ver todas <ArrowRight />
-        </a>
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+          <a href="#" className="section-head-link" onClick={(e) => { e.preventDefault(); setPage('producoes'); }}>
+            Ver produções <ArrowRight />
+          </a>
+          <a href="#" className="section-head-link" onClick={(e) => { e.preventDefault(); setPage('noticias'); }}>
+            Ver notícias <ArrowRight />
+          </a>
+        </div>
       </div>
       <div className="grid-3">
-        {productions.slice(0, 3).map((p, i) => (
-          <article className={`card fadein delay-${i + 1}`} key={i}>
-            <div className="card-meta">
-              <span className="card-tag">{p.type}</span>
-              <span>{p.date}</span>
-            </div>
-            <h3 className="card-title">{p.title}</h3>
-            <p className="card-desc">{p.desc}</p>
-            <div className="card-tags">
-              {p.tags.map(t => <span className="chip" key={t}>{t}</span>)}
-            </div>
-          </article>
+        {destaques.slice(0, 3).map((p, i) => (
+          <window.PubCard key={p.id || i} item={p} index={i} onOpen={abrirDetalhe} />
         ))}
+        {destaques.length === 0 && (
+          <p style={{ gridColumn: '1/-1', textAlign: 'center', color: 'var(--muted)', padding: 40 }}>
+            Ainda não há publicações. Crie a primeira no admin.
+          </p>
+        )}
       </div>
     </section>
   );
@@ -239,15 +267,21 @@ function EventsHome({ setPage }) {
                 </div>
                 <p className="event-desc">{ev.desc}</p>
               </div>
-              <a className="event-cta" href="#">Inscrever-se <ArrowRight /></a>
+                <BotaoInscricaoEvento evento={ev} />
             </div>
           ))}
+          {events.length === 0 && (
+            <p style={{ textAlign: 'center', color: 'var(--muted)', padding: 40 }}>
+              Nenhum evento programado no momento.
+            </p>
+          )}
         </div>
       </div>
     </section>
   );
 }
 
+// MUDANÇA: CTA agora é um botão que abre o formulário externo
 function CtaBand({ setPage }) {
   return (
     <section style={{ background: 'var(--ink)', color: 'var(--paper)' }}>
@@ -259,21 +293,31 @@ function CtaBand({ setPage }) {
         <p style={{ fontSize: 16, lineHeight: 1.6, color: 'rgba(222,222,222,0.82)', margin: '0 0 28px' }}>
           Análises, indicadores e leituras selecionadas pelos estudantes de Economia da FACAMP.
         </p>
-        <form className="newsletter-form" style={{ maxWidth: 460, margin: '0 auto' }} onSubmit={(e) => { e.preventDefault(); setPage('newsletter'); }}>
-          <input type="email" placeholder="seu@email.com" />
-          <button type="submit">Assinar</button>
-        </form>
+        <a
+          href={HOME_NEWSLETTER_FORM_URL}
+          target="_blank"
+          rel="noopener"
+          className="btn"
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: 10,
+            background: '#fff', color: 'var(--ink)',
+            fontSize: 17, padding: '16px 40px',
+            textDecoration: 'none', fontWeight: 600
+          }}
+        >
+          Assine <ArrowRight size={16} />
+        </a>
       </div>
     </section>
   );
 }
 
-function HomePage({ setPage }) {
+function HomePage({ setPage, abrirDetalhe }) {
   return (
     <>
       <Hero variant="gradient" setPage={setPage} />
       <StatsRow />
-      <HighlightsHome setPage={setPage} />
+      <HighlightsHome setPage={setPage} abrirDetalhe={abrirDetalhe} />
       <EventsHome setPage={setPage} />
       <CtaBand setPage={setPage} />
     </>

@@ -1,0 +1,434 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>CAEF · Admin · Eventos</title>
+  <link rel="stylesheet" href="shared/styles.css" />
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="shared/config.js"></script>
+  <script src="shared/components.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script>
+(function() {
+  var h = React.createElement;
+  var useState = React.useState;
+  var useEffect = React.useEffect;
+  var useCallback = React.useCallback;
+
+  var TABLE = 'evento';
+  var PK = 'id_evento';
+
+  var TIPOS = [
+    { v: 'evento',        label: 'Evento' },
+    { v: 'palestra',      label: 'Palestra' },
+    { v: 'workshop',      label: 'Workshop' },
+    { v: 'monitoria',     label: 'Monitorias' },
+    { v: 'roda_conversa', label: 'Roda de Conversa' }
+  ];
+
+  function labelTipo(t) {
+    for (var i = 0; i < TIPOS.length; i++) if (TIPOS[i].v === t) return TIPOS[i].label;
+    return t;
+  }
+
+  // ─── Helpers de data/hora (com timezone BR fixo) ───────
+  function inputParaISO(valorInput) {
+    if (!valorInput) return null;
+    return valorInput + ':00-03:00';
+  }
+  function isoParaInput(iso) {
+    if (!iso) return '';
+    var d = new Date(iso);
+    return d.getFullYear() + '-' +
+      String(d.getMonth() + 1).padStart(2, '0') + '-' +
+      String(d.getDate()).padStart(2, '0') + 'T' +
+      String(d.getHours()).padStart(2, '0') + ':' +
+      String(d.getMinutes()).padStart(2, '0');
+  }
+  function formatarBR(iso) {
+    if (!iso) return '—';
+    var d = new Date(iso);
+    var meses = ['janeiro','fevereiro','março','abril','maio','junho',
+                 'julho','agosto','setembro','outubro','novembro','dezembro'];
+    var dias = ['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
+    return dias[d.getDay()] + ', ' +
+      d.getDate() + ' de ' + meses[d.getMonth()] + ' de ' + d.getFullYear() +
+      ' às ' + String(d.getHours()).padStart(2,'0') + 'h' +
+      String(d.getMinutes()).padStart(2,'0');
+  }
+
+  function EventosPage() {
+    var sessionState = useState(null); var session = sessionState[0]; var setSession = sessionState[1];
+    var rowsState = useState(null);    var rows = rowsState[0];       var setRows = rowsState[1];
+    var editingState = useState(null); var editing = editingState[0]; var setEditing = editingState[1];
+    var buscaState = useState('');     var busca = buscaState[0];     var setBusca = buscaState[1];
+    var filtroState = useState('todos'); var filtro = filtroState[0]; var setFiltro = filtroState[1];
+
+    var load = useCallback(function() {
+      setRows(null);
+      window.sb.from(TABLE)
+        .select('*')
+        .order('data_inicio', { ascending: false })
+        .then(function(res) {
+          if (res.error) { window.toast('Erro: ' + res.error.message, 'err'); setRows([]); return; }
+          setRows(res.data || []);
+        });
+    }, []);
+
+    useEffect(function() {
+      window.requireAuth().then(function(s) {
+        if (s) { setSession(s); load(); }
+      });
+    }, []);
+
+    function remove(row) {
+      if (!confirm('Apagar "' + row.titulo + '"?')) return;
+      window.sb.from(TABLE).delete().eq(PK, row[PK]).then(function(res) {
+        if (res.error) { window.toast('Erro: ' + res.error.message, 'err'); return; }
+        window.toast('Apagado', 'ok'); load();
+      });
+    }
+
+    function duplicar(row) {
+      var copia = Object.assign({}, row);
+      delete copia[PK];
+      delete copia.criado_em;
+      copia.titulo = 'Cópia de ' + copia.titulo;
+      copia.ativo = false;
+      setEditing(copia);
+    }
+
+    if (!session) return h('div', { className: 'loading' }, 'Verificando sessão…');
+
+    var filtradosPorTipo = (rows || []).filter(function(r) {
+      return filtro === 'todos' || r.tipo === filtro;
+    });
+    var filtered = window.filtrarPorBusca(filtradosPorTipo, busca, ['titulo', 'descricao', 'local']);
+
+    if (editing) {
+      return h(React.Fragment, null,
+        h(window.AdminTopbar, { user: session.user, current: 'eventos' }),
+        h('div', { className: 'container' },
+          h(EventoForm, {
+            record: editing === 'new' ? null : editing,
+            isDuplicate: editing !== 'new' && !editing[PK],
+            onCancel: function() { setEditing(null); },
+            onSaved: function() { setEditing(null); load(); }
+          })
+        )
+      );
+    }
+
+    return h(React.Fragment, null,
+      h(window.AdminTopbar, { user: session.user, current: 'eventos' }),
+      h('div', { className: 'container' },
+        h('div', { className: 'page-head' },
+          h('div', null,
+            h('h1', null, 'Eventos'),
+            h('p', null, 'Palestras, workshops, rodas de conversa, monitorias e outros eventos organizados pelo CAEF.')
+          ),
+          h('button', {
+            className: 'btn primary',
+            onClick: function() { setEditing('new'); }
+          }, '+ Novo evento')
+        ),
+
+        h('div', { style: { display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' } },
+          h('button', {
+            className: 'btn ' + (filtro === 'todos' ? 'primary' : ''),
+            onClick: function() { setFiltro('todos'); },
+            style: { fontSize: 13, padding: '6px 12px' }
+          }, 'Todos'),
+          TIPOS.map(function(t) {
+            return h('button', {
+              key: t.v,
+              className: 'btn ' + (filtro === t.v ? 'primary' : ''),
+              onClick: function() { setFiltro(t.v); },
+              style: { fontSize: 13, padding: '6px 12px' }
+            }, t.label);
+          })
+        ),
+
+        rows && rows.length > 0 && h(window.SearchBar, {
+          value: busca,
+          onChange: setBusca,
+          placeholder: 'Buscar por título, descrição ou local…',
+          total: filtradosPorTipo.length,
+          filtered: filtered.length,
+          itemLabel: { singular: 'evento', plural: 'eventos' }
+        }),
+
+        rows === null && h('div', { className: 'loading' }, 'Carregando…'),
+        rows && rows.length === 0 && h('div', { className: 'empty' },
+          h('p', null, 'Nenhum evento cadastrado.'),
+          h('button', {
+            className: 'btn primary',
+            onClick: function() { setEditing('new'); }
+          }, 'Criar o primeiro')
+        ),
+
+        rows && rows.length > 0 && filtered.length === 0 && h('div', { className: 'empty-search' },
+          h('p', null, busca
+            ? 'Nenhum evento corresponde à busca "' + busca + '".'
+            : 'Nenhum evento neste tipo.'),
+          busca && h('button', { className: 'btn', onClick: function() { setBusca(''); } }, 'Limpar busca')
+        ),
+
+        filtered.length > 0 && h('div', { className: 'list' },
+          filtered.map(function(row) {
+            return h('div', { className: 'list-item', key: row[PK] },
+              h('div', { className: 'thumb' }, '📅'),
+              h('div', null,
+                h('div', { className: 'title' }, row.titulo),
+                h('div', { className: 'meta' },
+                  h('span', { className: 'pill' }, labelTipo(row.tipo || 'evento')),
+                  h('span', null, formatarBR(row.data_inicio)),
+                  row.local && h('span', null, '◉ ' + row.local),
+                  row.esgotado && h('span', { className: 'badge warn' }, '🚫 esgotado'),
+                  !row.inscricoes_abertas && !row.esgotado && h('span', { className: 'badge warn' }, '⏳ inscrições fechadas'),
+                  !row.ativo && h('span', { className: 'badge warn' }, '✎ inativo')
+                )
+              ),
+              h('div', { className: 'actions' },
+                h('button', { className: 'btn ghost', onClick: function() { setEditing(row); } }, 'Editar'),
+                h('button', {
+                  className: 'btn ghost duplicate',
+                  onClick: function() { duplicar(row); },
+                  title: 'Criar cópia'
+                }, 'Duplicar'),
+                h('button', { className: 'btn ghost danger', onClick: function() { remove(row); } }, 'Apagar')
+              )
+            );
+          })
+        )
+      )
+    );
+  }
+
+  function EventoForm(props) {
+    var record = props.record;
+    var isDuplicate = props.isDuplicate;
+    var onCancel = props.onCancel;
+    var onSaved = props.onSaved;
+    var isEdit = !!record && !isDuplicate;
+
+    var dataState = useState(record || {
+      tipo: 'evento', titulo: '', descricao: '',
+      data_inicio: null, data_fim: null,
+      local: '', vagas_total: null,
+      link_inscricao: '', imagem_url: null,
+      ativo: true, esgotado: false,
+      inscricoes_abertas: true      // NOVO — default aberto
+    });
+    var data = dataState[0]; var setData = dataState[1];
+
+    var errorsState = useState({}); var errors = errorsState[0]; var setErrors = errorsState[1];
+    var savingState = useState(false); var saving = savingState[0]; var setSaving = savingState[1];
+
+    function set(k, v) {
+      setData(function(d) { var n = Object.assign({}, d); n[k] = v; return n; });
+    }
+
+    function save() {
+      var e = {};
+      if (!data.titulo) e.titulo = 'Obrigatório';
+      if (!data.tipo) e.tipo = 'Obrigatório';
+      if (!data.data_inicio) e.data_inicio = 'Obrigatório';
+      setErrors(e);
+      if (Object.keys(e).length) return window.toast('Confira os campos obrigatórios', 'err');
+
+      setSaving(true);
+      var payload = Object.assign({}, data);
+      delete payload[PK]; delete payload.criado_em;
+
+      function finalizar(res) {
+        setSaving(false);
+        if (res.error) { window.toast('Erro: ' + res.error.message, 'err'); return; }
+        window.toast(isEdit ? 'Atualizado' : (isDuplicate ? 'Duplicata salva' : 'Publicado'), 'ok');
+        onSaved();
+      }
+
+      if (isEdit) {
+        window.sb.from(TABLE).update(payload).eq(PK, record[PK]).then(finalizar);
+      } else {
+        window.getAdminId().then(function(id) {
+          payload.id_adm = id;
+          window.sb.from(TABLE).insert(payload).then(finalizar);
+        });
+      }
+    }
+
+    var titulo = isEdit ? 'Editar' : (isDuplicate ? 'Duplicar' : 'Novo');
+
+    return h(React.Fragment, null,
+      h('div', { className: 'page-head' },
+        h('div', null,
+          h('h1', null, titulo + ' evento'),
+          h('p', null, 'Preencha as informações do evento. Para inscrição, cole o link do Google Forms.')
+        )
+      ),
+      h('div', { className: 'form-card' },
+        h('div', { className: 'form-grid' },
+          h(window.Field, {
+            label: 'Tipo de evento', required: true,
+            hint: 'Define a categoria e onde aparece nos filtros do site',
+            full: true
+          },
+            h('select', {
+              value: data.tipo || 'evento',
+              onChange: function(e) { set('tipo', e.target.value); }
+            },
+              TIPOS.map(function(t) { return h('option', { key: t.v, value: t.v }, t.label); })
+            )
+          ),
+
+          h(window.Field, { label: 'Título', required: true, error: errors.titulo, full: true },
+            h('input', { type: 'text', value: data.titulo || '',
+              onChange: function(e) { set('titulo', e.target.value); } })
+          ),
+
+          h(window.Field, { label: 'Descrição', hint: 'Explique brevemente do que se trata', full: true },
+            h('textarea', { rows: 5, value: data.descricao || '',
+              onChange: function(e) { set('descricao', e.target.value); } })
+          ),
+
+          h('div', { className: 'row-2' },
+            h(window.Field, {
+              label: 'Início', required: true,
+              hint: 'Data e hora do evento',
+              error: errors.data_inicio
+            },
+              h('input', {
+                type: 'datetime-local',
+                lang: 'pt-BR',
+                value: isoParaInput(data.data_inicio),
+                onChange: function(e) { set('data_inicio', inputParaISO(e.target.value)); }
+              }),
+              data.data_inicio && h('div', {
+                style: {
+                  fontSize: 12, color: 'var(--brand, #14123a)', marginTop: 6,
+                  padding: '6px 10px', background: 'var(--accent-soft, #e8f0e8)',
+                  borderRadius: 4, fontWeight: 500
+                }
+              }, '📅 ' + formatarBR(data.data_inicio))
+            ),
+            h(window.Field, {
+              label: 'Fim',
+              hint: 'Opcional. Se preencher, aparece no site como intervalo de horário/data.'
+            },
+              h('input', {
+                type: 'datetime-local',
+                lang: 'pt-BR',
+                value: isoParaInput(data.data_fim),
+                onChange: function(e) { set('data_fim', inputParaISO(e.target.value)); }
+              }),
+              data.data_fim && h('div', {
+                style: {
+                  fontSize: 12, color: 'var(--brand, #14123a)', marginTop: 6,
+                  padding: '6px 10px', background: 'var(--accent-soft, #e8f0e8)',
+                  borderRadius: 4, fontWeight: 500
+                }
+              }, '📅 ' + formatarBR(data.data_fim))
+            )
+          ),
+
+          h('div', { className: 'row-2' },
+            h(window.Field, { label: 'Local', hint: 'Ex: Auditório principal' },
+              h('input', { type: 'text', value: data.local || '',
+                onChange: function(e) { set('local', e.target.value); } })
+            ),
+            h(window.Field, {
+              label: 'Vagas totais',
+              hint: 'Opcional. Deixe vazio se não tem limite (vagas livres).'
+            },
+              h('input', { type: 'number', min: 0, value: data.vagas_total || '',
+                onChange: function(e) { set('vagas_total', e.target.value ? Number(e.target.value) : null); } })
+            )
+          ),
+
+          h(window.Field, {
+            label: 'Link de inscrição',
+            hint: 'Cole aqui o link do Google Forms ou similar.',
+            full: true
+          },
+            h('input', {
+              type: 'url',
+              placeholder: 'https://forms.gle/…',
+              value: data.link_inscricao || '',
+              onChange: function(e) { set('link_inscricao', e.target.value || null); }
+            })
+          ),
+
+          // NOVA SEÇÃO: controle do botão de inscrição
+          h('div', {
+            style: {
+              gridColumn: '1 / -1',
+              padding: 16, background: 'var(--paper-2, #f6f7fa)',
+              borderRadius: 8, border: '1px solid var(--line-soft, #e5e7eb)'
+            }
+          },
+            h('div', {
+              style: {
+                fontSize: 13, fontWeight: 600, marginBottom: 12,
+                color: 'var(--ink-1)', textTransform: 'uppercase',
+                letterSpacing: '0.05em'
+              }
+            }, '⚙️ Controle do botão "Inscrever-se" no site'),
+
+            h(window.Field, {
+              label: 'Inscrições abertas',
+              hint: 'Se DESmarcado, o site mostra "Inscrições em breve" mesmo se o link já estiver colado. Marque quando quiser liberar as inscrições publicamente.'
+            },
+              h('label', { className: 'check' },
+                h('input', {
+                  type: 'checkbox', checked: !!data.inscricoes_abertas,
+                  onChange: function(e) { set('inscricoes_abertas', e.target.checked); }
+                }),
+                h('span', null, data.inscricoes_abertas
+                  ? '✅ Sim, botão de inscrição aparece no site'
+                  : '⏳ Não, botão fica como "Inscrições em breve"')
+              )
+            ),
+
+            h(window.Field, {
+              label: 'Vagas esgotadas',
+              hint: 'Marque quando não houver mais vagas. Sobrescreve a opção acima e mostra "Esgotado".'
+            },
+              h('label', { className: 'check' },
+                h('input', {
+                  type: 'checkbox', checked: !!data.esgotado,
+                  onChange: function(e) { set('esgotado', e.target.checked); }
+                }),
+                h('span', null, data.esgotado ? '🚫 Esgotado (inscrições fechadas)' : 'Ainda tem vagas')
+              )
+            )
+          ),
+
+          h(window.Field, { label: 'Ativo', hint: 'Se desmarcado, o evento não aparece no site.', full: true },
+            h('label', { className: 'check' },
+              h('input', { type: 'checkbox', checked: !!data.ativo,
+                onChange: function(e) { set('ativo', e.target.checked); } }),
+              h('span', null, data.ativo ? 'Sim, visível no site' : 'Não, oculto')
+            )
+          )
+        ),
+        h('div', { className: 'form-actions' },
+          h('button', { className: 'btn', onClick: onCancel, disabled: saving }, 'Cancelar'),
+          h('button', { className: 'btn primary', onClick: save, disabled: saving },
+            saving ? 'Salvando…' : (isEdit ? 'Salvar alterações' : 'Publicar')
+          )
+        )
+      )
+    );
+  }
+
+  ReactDOM.createRoot(document.getElementById('root')).render(h(EventosPage));
+})();
+</script>
+</body>
+</html>

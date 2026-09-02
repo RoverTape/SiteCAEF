@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>CAEF · Admin · Login</title>
+  <link rel="stylesheet" href="shared/styles.css" />
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="shared/config.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script>
+(function() {
+  const { useState, useEffect } = React;
+  const h = React.createElement;
+
+  function Login() {
+    const [email, setEmail] = useState('');
+    const [pass, setPass] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [err, setErr] = useState('');
+
+    useEffect(function() {
+      window.sb.auth.getSession().then(function(res) {
+        if (res.data.session) window.location.href = 'dashboard.html';
+      });
+    }, []);
+
+    function submit(e) {
+      e.preventDefault();
+      setLoading(true); setErr('');
+      window.sb.auth.signInWithPassword({ email: email, password: pass })
+        .then(function(res) {
+          setLoading(false);
+          if (res.error) { setErr('Email ou senha inválidos'); return; }
+          window.location.href = 'dashboard.html';
+        });
+    }
+
+    return h('div', { className: 'login-shell' },
+      h('div', { className: 'login-card' },
+        h('h1', null, 'CAEF · Admin'),
+        h('p', { className: 'sub' }, 'Entre para gerenciar o conteúdo do site.'),
+        h('form', { onSubmit: submit, className: 'form-grid' },
+          h('div', { className: 'field' },
+            h('label', null, 'Email'),
+            h('input', {
+              type: 'email',
+              value: email,
+              onChange: function(e) { setEmail(e.target.value); },
+              required: true, autoFocus: true, autoComplete: 'username'
+            })
+          ),
+          h('div', { className: 'field' },
+            h('label', null, 'Senha'),
+            h('input', {
+              type: 'password',
+              value: pass,
+              onChange: function(e) { setPass(e.target.value); },
+              required: true, autoComplete: 'current-password'
+            })
+          ),
+          err && h('div', { className: 'field' },
+            h('div', { className: 'err' }, err)
+          ),
+          h('button', {
+            className: 'btn primary',
+            disabled: loading
+          }, loading ? 'Entrando…' : 'Entrar')
+        )
+      )
+    );
+  }
+
+  ReactDOM.createRoot(document.getElementById('root')).render(h(Login));
+})();
+</script>
+</body>
+</html>

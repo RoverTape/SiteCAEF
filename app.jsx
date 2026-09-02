@@ -32,10 +32,26 @@ function SplashScreen() {
 function App() {
   const [page, setPage] = React.useState('home');
 
-  // Aplica paleta institucional uma única vez
+  // Item selecionado pra página de detalhe + de onde veio
+  const [detalheItem, setDetalheItem] = React.useState(null);
+  const [voltarPara, setVoltarPara] = React.useState('home');
+
+  const abrirDetalhe = React.useCallback((item) => {
+    setDetalheItem(item);
+    setVoltarPara(page);
+    setPage('detalhe');
+  }, [page]);
+
+  // Re-render quando os dados do Supabase chegam
+  const [dataVer, setDataVer] = React.useState(0);
+  React.useEffect(() => {
+    const onReady = () => setDataVer(v => v + 1);
+    window.addEventListener('caef:data-ready', onReady);
+    return () => window.removeEventListener('caef:data-ready', onReady);
+  }, []);
+
   React.useEffect(() => { applyPalette(); }, []);
 
-  // Fade-in por scroll em cada mudança de página
   React.useEffect(() => {
     const io = new IntersectionObserver((entries) => {
       entries.forEach(e => {
@@ -44,19 +60,20 @@ function App() {
     }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
     document.querySelectorAll('.fadein:not(.visible)').forEach(el => io.observe(el));
     return () => io.disconnect();
-  }, [page]);
+  }, [page, dataVer]);
 
-  // Volta ao topo ao trocar de página
   React.useEffect(() => { window.scrollTo({ top: 0, behavior: 'auto' }); }, [page]);
 
   const pages = {
-    home:        <window.HomePage setPage={setPage} />,
-    producoes:   <window.ProducoesPage />,
+    home:        <window.HomePage setPage={setPage} abrirDetalhe={abrirDetalhe} />,
+    producoes:   <window.ProducoesPage setPage={setPage} abrirDetalhe={abrirDetalhe} />,
+    noticias:    <window.NoticiasPage setPage={setPage} abrirDetalhe={abrirDetalhe} />,   // NOVA
     indicadores: <window.IndicadoresPage />,
-    newsletter:  <window.NewsletterPage />,
+    newsletter:  <window.NewsletterPage abrirDetalhe={abrirDetalhe} />,
     eventos:     <window.EventosPage />,
     sobre:       <window.SobrePage />,
     contato:     <window.ContatoPage />,
+    detalhe:     <window.DetalhePage item={detalheItem} setPage={setPage} voltarPara={voltarPara} />,
   };
 
   return (

@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>CAEF · Admin · Dashboard</title>
+  <link rel="stylesheet" href="shared/styles.css" />
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="shared/config.js"></script>
+  <script src="shared/components.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script>
+(function() {
+  var h = React.createElement;
+  var useState = React.useState;
+  var useEffect = React.useEffect;
+
+  function DashboardPage() {
+    var sessionState = useState(null); var session = sessionState[0]; var setSession = sessionState[1];
+    var statsState = useState({});     var stats = statsState[0];     var setStats = statsState[1];
+
+    useEffect(function() {
+      window.requireAuth().then(function(s) {
+        if (!s) return;
+        setSession(s);
+        Promise.all([
+          window.sb.from('producoes').select('*', { count: 'exact', head: true }),
+          window.sb.from('noticias').select('*', { count: 'exact', head: true }),
+          window.sb.from('evento').select('*', { count: 'exact', head: true }),
+          window.sb.from('membros').select('*', { count: 'exact', head: true })
+        ]).then(function(rs) {
+          setStats({
+            producoes: rs[0].count || 0,
+            noticias:  rs[1].count || 0,
+            eventos:   rs[2].count || 0,
+            membros:   rs[3].count || 0
+          });
+        });
+      });
+    }, []);
+
+    if (!session) return h('div', { className: 'loading' }, 'Verificando sessão…');
+
+    var cards = [
+      { key: 'producoes', title: 'Produções', desc: 'TCCs, ICs, monografias, artigos acadêmicos', href: 'producoes.html', count: stats.producoes },
+      { key: 'noticias',  title: 'Notícias / Blog', desc: 'Artigos, blog, resenhas, newsletter, coberturas', href: 'noticias.html', count: stats.noticias },
+      { key: 'eventos',   title: 'Eventos', desc: 'Palestras, workshops, rodas de conversa, monitorias', href: 'eventos.html', count: stats.eventos },
+      { key: 'membros',   title: 'Membros', desc: 'Diretoria do CAEF', href: 'membros.html', count: stats.membros }
+    ];
+
+    return h(React.Fragment, null,
+      h(window.AdminTopbar, { user: session.user, current: 'dashboard' }),
+      h('div', { className: 'container' },
+        h('div', { className: 'page-head' },
+          h('div', null,
+            h('h1', null, 'Bem-vindo'),
+            h('p', null, 'Escolha uma seção para gerenciar o conteúdo.')
+          )
+        ),
+        h('div', { className: 'dashboard-grid' },
+          cards.map(function(c) {
+            return h('a', { className: 'dashboard-card', href: c.href, key: c.key },
+              h('h3', null, c.title),
+              h('p', null, c.desc),
+              h('span', { className: 'count' },
+                c.count === undefined ? '—' :
+                c.count + (c.count === 1 ? ' item' : ' itens')
+              )
+            );
+          })
+        ),
+
+        h('div', { style: { marginTop: 40 } },
+          h('div', {
+            style: {
+              fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.14em',
+              color: 'var(--ink-3)', marginBottom: 12, fontFamily: 'monospace'
+            }
+          }, 'Recursos & monitoramento'),
+          h('div', { className: 'resources-grid' },
+            h('a', {
+              className: 'resource-card',
+              href: 'https://supabase.com/dashboard/project/cfmtprdrwjicrduiqwrk',
+              target: '_blank', rel: 'noopener'
+            },
+              h('div', { className: 'resource-icon supabase' }, '⚡'),
+              h('div', { className: 'resource-body' },
+                h('div', { className: 'resource-title' }, 'Supabase'),
+                h('div', { className: 'resource-desc' }, 'Ver uso de banco, storage e bandwidth do plano gratuito.'),
+                h('div', { className: 'resource-hint' }, 'Abrir dashboard oficial ↗')
+              )
+            ),
+            h('div', { className: 'resource-card info' },
+              h('div', { className: 'resource-body' },
+                h('div', { className: 'resource-title' }, 'Limites do plano gratuito'),
+                h('div', { className: 'resource-limits' },
+                  h('div', null, h('span', { className: 'lbl' }, 'Storage'), h('span', { className: 'val' }, '1 GB')),
+                  h('div', null, h('span', { className: 'lbl' }, 'Banco'), h('span', { className: 'val' }, '500 MB')),
+                  h('div', null, h('span', { className: 'lbl' }, 'Bandwidth/mês'), h('span', { className: 'val' }, '10 GB')),
+                  h('div', null, h('span', { className: 'lbl' }, 'Max por arquivo'), h('span', { className: 'val' }, '50 MB'))
+                ),
+                h('div', { className: 'resource-desc', style: { fontSize: 12, marginTop: 8 } },
+                  'Se aproximar do limite, mova PDFs pro Google Drive.'
+                )
+              )
+            )
+          )
+        )
+      )
+    );
+  }
+
+  ReactDOM.createRoot(document.getElementById('root')).render(h(DashboardPage));
+})();
+</script>
+</body>
+</html>

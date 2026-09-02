@@ -1,0 +1,527 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>CAEF · Admin · Produções</title>
+  <link rel="stylesheet" href="shared/styles.css" />
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="shared/config.js"></script>
+  <script src="shared/components.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script>
+(function() {
+  var h = React.createElement;
+  var useState = React.useState;
+  var useEffect = React.useEffect;
+  var useCallback = React.useCallback;
+
+  var TABLE = 'producoes';
+  var PK = 'id_producao';
+
+  var TIPOS = [
+    { v: 'tcc',                  label: 'TCC' },
+    { v: 'iniciacao_cientifica', label: 'Iniciação Científica' },
+    { v: 'monografia',           label: 'Monografia' },
+    { v: 'artigo',               label: 'Artigo Científico' },
+    { v: 'dissertacao',          label: 'Dissertação' },
+    { v: 'extensao_academica',   label: 'Extensão Acadêmica' }
+  ];
+
+  function labelTipo(t) {
+    for (var i = 0; i < TIPOS.length; i++) if (TIPOS[i].v === t) return TIPOS[i].label;
+    return t;
+  }
+
+  function ProducoesPage() {
+    var sessionState = useState(null); var session = sessionState[0]; var setSession = sessionState[1];
+    var rowsState = useState(null);    var rows = rowsState[0];       var setRows = rowsState[1];
+    var editingState = useState(null); var editing = editingState[0]; var setEditing = editingState[1];
+    var buscaState = useState('');     var busca = buscaState[0];     var setBusca = buscaState[1];
+
+    var load = useCallback(function() {
+      setRows(null);
+      window.sb.from(TABLE)
+        .select('*, autores:autores_producao(*)')
+        .order('criado_em', { ascending: false })
+        .then(function(res) {
+          if (res.error) { window.toast('Erro: ' + res.error.message, 'err'); setRows([]); return; }
+          setRows(res.data || []);
+        });
+    }, []);
+
+    useEffect(function() {
+      window.requireAuth().then(function(s) {
+        if (s) { setSession(s); load(); }
+      });
+    }, []);
+
+    function remove(row) {
+      if (!confirm('Apagar produção "' + row.titulo + '"?\nIsso também apagará todos os autores vinculados.')) return;
+      window.sb.from('autores_producao').delete().eq('id_producao', row[PK]).then(function() {
+        window.sb.from(TABLE).delete().eq(PK, row[PK]).then(function(res) {
+          if (res.error) { window.toast('Erro: ' + res.error.message, 'err'); return; }
+          window.toast('Apagado', 'ok'); load();
+        });
+      });
+    }
+
+    function duplicar(row) {
+      var copia = Object.assign({}, row);
+      delete copia[PK];
+      delete copia.criado_em;
+      delete copia.atualizado_em;
+      copia.titulo = 'Cópia de ' + copia.titulo;
+      copia.publicado = false;
+      copia.autores = (row.autores || []).map(function(a) {
+        var novo = Object.assign({}, a);
+        delete novo.id_autor;
+        delete novo.id_producao;
+        return novo;
+      });
+      setEditing(copia);
+    }
+
+    if (!session) return h('div', { className: 'loading' }, 'Verificando sessão…');
+
+    var filtered = window.filtrarPorBusca(
+      rows || [], busca,
+      ['titulo', 'resumo', 'area', 'orientador']
+    );
+
+    if (editing) {
+      return h(React.Fragment, null,
+        h(window.AdminTopbar, { user: session.user, current: 'producoes' }),
+        h('div', { className: 'container' },
+          h(ProducaoForm, {
+            record: editing === 'new' ? null : editing,
+            isDuplicate: editing !== 'new' && !editing[PK],
+            onCancel: function() { setEditing(null); },
+            onSaved: function() { setEditing(null); load(); }
+          })
+        )
+      );
+    }
+
+    return h(React.Fragment, null,
+      h(window.AdminTopbar, { user: session.user, current: 'producoes' }),
+      h('div', { className: 'container' },
+        h('div', { className: 'page-head' },
+          h('div', null,
+            h('h1', null, 'Produções Acadêmicas'),
+            h('p', null, 'Trabalhos formais com PDF: TCCs, ICs, monografias, dissertações, artigos científicos e extensão acadêmica. Para textos de opinião, blog ou resenhas, use "Notícias".')
+          ),
+          h('button', {
+            className: 'btn primary',
+            onClick: function() { setEditing('new'); }
+          }, '+ Nova produção')
+        ),
+
+        rows && rows.length > 0 && h(window.SearchBar, {
+          value: busca,
+          onChange: setBusca,
+          placeholder: 'Buscar por título, resumo, área ou orientador…',
+          total: rows.length,
+          filtered: filtered.length,
+          itemLabel: { singular: 'produção', plural: 'produções' }
+        }),
+
+        rows === null && h('div', { className: 'loading' }, 'Carregando…'),
+        rows && rows.length === 0 && h('div', { className: 'empty' },
+          h('p', null, 'Nenhuma produção cadastrada.'),
+          h('button', {
+            className: 'btn primary',
+            onClick: function() { setEditing('new'); }
+          }, 'Criar a primeira')
+        ),
+
+        rows && rows.length > 0 && filtered.length === 0 && h('div', { className: 'empty-search' },
+          h('p', null, 'Nenhuma produção corresponde à busca "' + busca + '".'),
+          h('button', { className: 'btn', onClick: function() { setBusca(''); } }, 'Limpar busca')
+        ),
+
+        filtered.length > 0 && h('div', { className: 'list' },
+          filtered.map(function(row) {
+            var qtdAutores = (row.autores || []).length;
+            return h('div', { className: 'list-item', key: row[PK] },
+              h('div', { className: 'thumb' }, row.pdf_url ? '📄' : '—'),
+              h('div', null,
+                h('div', { className: 'title' }, row.titulo),
+                h('div', { className: 'meta' },
+                  h('span', { className: 'pill' }, labelTipo(row.tipo)),
+                  h('span', null, row.ano + (row.semestre ? '.' + row.semestre : '')),
+                  row.area && h('span', null, row.area),
+                  qtdAutores > 0 && h('span', null, qtdAutores + ' ' + (qtdAutores === 1 ? 'autor' : 'autores')),
+                  row.destaque && h('span', { className: 'badge ok' }, '★ destaque'),
+                  !row.publicado && h('span', { className: 'badge warn' }, '✎ rascunho')
+                )
+              ),
+              h('div', { className: 'actions' },
+                h('button', { className: 'btn ghost', onClick: function() { setEditing(row); } }, 'Editar'),
+                h('button', {
+                  className: 'btn ghost duplicate',
+                  onClick: function() { duplicar(row); },
+                  title: 'Criar nova produção com esses dados (como rascunho)'
+                }, 'Duplicar'),
+                h('button', { className: 'btn ghost danger', onClick: function() { remove(row); } }, 'Apagar')
+              )
+            );
+          })
+        )
+      )
+    );
+  }
+
+  function ProducaoForm(props) {
+    var record = props.record;
+    var isDuplicate = props.isDuplicate;
+    var onCancel = props.onCancel;
+    var onSaved = props.onSaved;
+    var isEdit = !!record && !isDuplicate;
+
+    var dataState = useState(record || {
+      tipo: 'tcc', titulo: '', resumo: '',
+      orientador: '', coorientador: '', area: '',
+      palavras_chave: [], ano: new Date().getFullYear(), semestre: 1,
+      pdf_url: null, link_externo: null,
+      nota_mencao: '', destaque: false, publicado: true
+    });
+    var data = dataState[0]; var setData = dataState[1];
+
+    var autoresState = useState((record && record.autores) || []);
+    var autores = autoresState[0]; var setAutores = autoresState[1];
+
+    var errorsState = useState({}); var errors = errorsState[0]; var setErrors = errorsState[1];
+    var savingState = useState(false); var saving = savingState[0]; var setSaving = savingState[1];
+
+    var eraPublicadoState = useState(isEdit ? !!record.publicado : false);
+    var eraPublicado = eraPublicadoState[0];
+
+    function set(k, v) {
+      setData(function(d) { var n = Object.assign({}, d); n[k] = v; return n; });
+    }
+
+    function addAutor() {
+      setAutores(function(a) {
+        return a.concat([{ nome: '', email: '', ra: '', ordem: a.length + 1 }]);
+      });
+    }
+    function updAutor(i, k, v) {
+      setAutores(function(a) {
+        return a.map(function(x, j) {
+          if (j !== i) return x;
+          var n = Object.assign({}, x); n[k] = v; return n;
+        });
+      });
+    }
+    function rmAutor(i) {
+      setAutores(function(a) {
+        return a.filter(function(_, j) { return j !== i; })
+          .map(function(x, j) { var n = Object.assign({}, x); n.ordem = j + 1; return n; });
+      });
+    }
+
+    function save(publicadoOverride) {
+      var e = {};
+      if (!data.titulo) e.titulo = 'Obrigatório';
+      if (!data.tipo) e.tipo = 'Obrigatório';
+      if (!data.ano) e.ano = 'Obrigatório';
+      setErrors(e);
+      if (Object.keys(e).length) return window.toast('Confira os campos obrigatórios', 'err');
+      for (var i = 0; i < autores.length; i++) {
+        if (!autores[i].nome) return window.toast('Cada autor precisa de um nome', 'err');
+      }
+
+      setSaving(true);
+      var payload = Object.assign({}, data);
+      if (publicadoOverride !== undefined) {
+        payload.publicado = publicadoOverride;
+      }
+      delete payload[PK]; delete payload.criado_em; delete payload.atualizado_em;
+      delete payload.autores;
+
+      function saveAutores(prodId) {
+        return window.sb.from('autores_producao').delete().eq('id_producao', prodId).then(function() {
+          if (autores.length === 0) return { error: null };
+          var autoresPayload = autores.map(function(a, i) {
+            return {
+              id_producao: prodId,
+              nome: a.nome,
+              email: a.email || null,
+              ra: a.ra || null,
+              ordem: i + 1
+            };
+          });
+          return window.sb.from('autores_producao').insert(autoresPayload);
+        });
+      }
+
+      function finalizar(prodId) {
+        saveAutores(prodId).then(function(res) {
+          setSaving(false);
+          if (res && res.error) {
+            window.toast('Erro nos autores: ' + res.error.message, 'err'); return;
+          }
+          var msg;
+          if (isEdit) {
+            if (payload.publicado && !eraPublicado) msg = 'Publicado no site';
+            else if (!payload.publicado && eraPublicado) msg = 'Despublicado (só rascunho)';
+            else msg = 'Salvo';
+          } else {
+            msg = payload.publicado ? 'Publicado no site' : 'Salvo como rascunho';
+            if (isDuplicate) msg = 'Duplicata salva como rascunho';
+          }
+          window.toast(msg, 'ok'); onSaved();
+        });
+      }
+
+      if (isEdit) {
+        window.sb.from(TABLE).update(payload).eq(PK, record[PK]).then(function(res) {
+          if (res.error) {
+            setSaving(false); window.toast('Erro: ' + res.error.message, 'err'); return;
+          }
+          finalizar(record[PK]);
+        });
+      } else {
+        window.getAdminId().then(function(id) {
+          payload.id_adm = id;
+          window.sb.from(TABLE).insert(payload).select().single().then(function(res) {
+            if (res.error) {
+              setSaving(false); window.toast('Erro: ' + res.error.message, 'err'); return;
+            }
+            finalizar(res.data[PK]);
+          });
+        });
+      }
+    }
+
+    function renderBotoesAcao() {
+      if (!isEdit) {
+        return h(React.Fragment, null,
+          h('div', { className: 'form-actions-hint' },
+            'Salve como rascunho pra revisar depois, ou publique direto no site.'
+          ),
+          h('button', { className: 'btn', onClick: onCancel, disabled: saving }, 'Cancelar'),
+          h('button', {
+            className: 'btn secondary',
+            onClick: function() { save(false); },
+            disabled: saving
+          }, saving ? 'Salvando…' : 'Salvar rascunho'),
+          h('button', {
+            className: 'btn primary',
+            onClick: function() { save(true); },
+            disabled: saving
+          }, saving ? 'Publicando…' : '📢 Publicar')
+        );
+      }
+
+      if (eraPublicado) {
+        return h(React.Fragment, null,
+          h('div', { className: 'form-actions-hint' },
+            '📢 Esta produção está publicada no site.'
+          ),
+          h('button', { className: 'btn', onClick: onCancel, disabled: saving }, 'Cancelar'),
+          h('button', {
+            className: 'btn warn',
+            onClick: function() {
+              if (!confirm('Despublicar "' + data.titulo + '"? Ela ficará como rascunho e não aparecerá no site.')) return;
+              save(false);
+            },
+            disabled: saving
+          }, 'Despublicar'),
+          h('button', {
+            className: 'btn primary',
+            onClick: function() { save(true); },
+            disabled: saving
+          }, saving ? 'Salvando…' : 'Salvar alterações')
+        );
+      }
+
+      return h(React.Fragment, null,
+        h('div', { className: 'form-actions-hint' },
+          '✎ Esta produção é um rascunho — não aparece no site ainda.'
+        ),
+        h('button', { className: 'btn', onClick: onCancel, disabled: saving }, 'Cancelar'),
+        h('button', {
+          className: 'btn secondary',
+          onClick: function() { save(false); },
+          disabled: saving
+        }, saving ? 'Salvando…' : 'Salvar rascunho'),
+        h('button', {
+          className: 'btn primary',
+          onClick: function() { save(true); },
+          disabled: saving
+        }, saving ? 'Publicando…' : '📢 Publicar agora')
+      );
+    }
+
+    var titulo = isEdit ? 'Editar' : (isDuplicate ? 'Duplicar' : 'Nova');
+    var subtitulo = isDuplicate
+      ? 'Ajuste o que precisar. A duplicata começa como rascunho.'
+      : 'Preencha os dados acadêmicos. Pode adicionar múltiplos autores.';
+
+    return h(React.Fragment, null,
+      h('div', { className: 'page-head' },
+        h('div', null,
+          h('h1', null, titulo + ' produção'),
+          h('p', null, subtitulo)
+        )
+      ),
+      h('div', { className: 'form-card' },
+        h('div', { className: 'form-grid' },
+          h('div', { className: 'row-2' },
+            h(window.Field, { label: 'Tipo', required: true },
+              h('select', { value: data.tipo || 'tcc',
+                onChange: function(e) { set('tipo', e.target.value); } },
+                TIPOS.map(function(t) { return h('option', { key: t.v, value: t.v }, t.label); })
+              )
+            ),
+            h(window.Field, { label: 'Área', hint: 'Ex: Macroeconomia' },
+              h('input', { type: 'text', value: data.area || '',
+                onChange: function(e) { set('area', e.target.value); } })
+            )
+          ),
+          h(window.Field, { label: 'Título', required: true, error: errors.titulo, full: true },
+            h('input', { type: 'text', value: data.titulo || '',
+              onChange: function(e) { set('titulo', e.target.value); } })
+          ),
+          h(window.Field, { label: 'Resumo', hint: 'Abstract / resumo do trabalho', full: true },
+            h('textarea', { rows: 5, value: data.resumo || '',
+              onChange: function(e) { set('resumo', e.target.value); } })
+          ),
+          h(window.Field, { label: 'Palavras-chave', hint: 'Aperte Enter ou vírgula para adicionar', full: true },
+            h(window.TagsInput, {
+              value: data.palavras_chave || [],
+              onChange: function(v) { set('palavras_chave', v); },
+              placeholder: 'Ex: inflação, política monetária…'
+            })
+          ),
+          h('div', { className: 'row-2' },
+            h(window.Field, { label: 'Orientador' },
+              h('input', { type: 'text', value: data.orientador || '',
+                onChange: function(e) { set('orientador', e.target.value); } })
+            ),
+            h(window.Field, { label: 'Coorientador', hint: 'Opcional' },
+              h('input', { type: 'text', value: data.coorientador || '',
+                onChange: function(e) { set('coorientador', e.target.value); } })
+            )
+          ),
+          h('div', { className: 'row-3' },
+            h(window.Field, { label: 'Ano', required: true, error: errors.ano },
+              h('input', { type: 'number', value: data.ano || '',
+                onChange: function(e) { set('ano', Number(e.target.value)); } })
+            ),
+            h(window.Field, { label: 'Semestre', hint: '1 ou 2' },
+              h('select', { value: data.semestre || '',
+                onChange: function(e) { set('semestre', Number(e.target.value)); } },
+                h('option', { value: '' }, '—'),
+                h('option', { value: '1' }, '1'),
+                h('option', { value: '2' }, '2')
+              )
+            ),
+            h(window.Field, { label: 'Nota / Menção', hint: 'Opcional. Ex: 9,5 ou "Louvor"' },
+              h('input', { type: 'text', value: data.nota_mencao || '',
+                onChange: function(e) { set('nota_mencao', e.target.value); } })
+            )
+          ),
+
+          // NOVO HINT: deixa MUITO claro o que é o PDF vs Link externo
+          h(window.Field, {
+            label: '📄 PDF do trabalho',
+            hint: 'O arquivo do trabalho, se for grande, use link de um Drive Externo, como OneDrive, GoogleDrive, etc.',
+            full: true
+          },
+            h(window.PDFUpload, {
+              value: data.pdf_url,
+              onChange: function(v) { set('pdf_url', v); },
+              pasta: 'producoes'
+            })
+          ),
+
+          // NOVO HINT: agora explica claramente que é DIFERENTE do PDF
+          h(window.Field, {
+            label: '🔗 Link externo (opcional)',
+            hint: 'Página do trabalho em outro lugar: SciELO, Google Scholar, repositório da FACAMP, etc. NÃO é o PDF — é uma página adicional.',
+            full: true
+          },
+            h('input', { type: 'url',
+              placeholder: 'https://... (deixe vazio se não tiver)',
+              value: data.link_externo || '',
+              onChange: function(e) { set('link_externo', e.target.value || null); } })
+          ),
+
+          h(window.Field, { label: 'Destaque', hint: 'Trabalhos em destaque na home', full: true },
+            h('label', { className: 'check' },
+              h('input', { type: 'checkbox', checked: !!data.destaque,
+                onChange: function(e) { set('destaque', e.target.checked); } }),
+              h('span', null, data.destaque ? '★ Em destaque na home' : 'Não está em destaque')
+            )
+          ),
+
+          h('div', {
+            style: {
+              borderTop: '1px solid var(--line-soft)', paddingTop: 24, marginTop: 8,
+              gridColumn: '1 / -1'
+            }
+          },
+            h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 } },
+              h('div', null,
+                h('h3', { style: { margin: 0, fontSize: 16 } }, 'Autores'),
+                h('p', { className: 'muted', style: { margin: '2px 0 0', fontSize: 13 } },
+                  'Adicione cada autor do trabalho. A ordem importa.')
+              ),
+              h('button', { type: 'button', className: 'btn', onClick: addAutor }, '+ Adicionar autor')
+            ),
+            autores.length === 0 && h('p', { className: 'muted', style: { fontSize: 13 } },
+              'Nenhum autor adicionado ainda.'),
+            autores.map(function(a, i) {
+              return h('div', {
+                key: i,
+                style: {
+                  display: 'grid',
+                  gridTemplateColumns: 'auto 1fr 1fr 1fr auto',
+                  gap: 10, alignItems: 'end',
+                  padding: '12px 0', borderBottom: '1px solid var(--line-soft)'
+                }
+              },
+                h('div', { style: { paddingBottom: 8, color: 'var(--ink-3)', fontSize: 13, minWidth: 24 } },
+                  '#' + (i + 1)
+                ),
+                h(window.Field, { label: 'Nome', required: true },
+                  h('input', { type: 'text', value: a.nome || '',
+                    onChange: function(e) { updAutor(i, 'nome', e.target.value); } })
+                ),
+                h(window.Field, { label: 'Email' },
+                  h('input', { type: 'email', value: a.email || '',
+                    onChange: function(e) { updAutor(i, 'email', e.target.value); } })
+                ),
+                h(window.Field, { label: 'RA' },
+                  h('input', { type: 'text', value: a.ra || '',
+                    onChange: function(e) { updAutor(i, 'ra', e.target.value); } })
+                ),
+                h('button', {
+                  type: 'button',
+                  className: 'btn ghost danger',
+                  onClick: function() { rmAutor(i); },
+                  style: { marginBottom: 6 }
+                }, 'Remover')
+              );
+            })
+          )
+        ),
+        h('div', { className: 'form-actions' },
+          renderBotoesAcao()
+        )
+      )
+    );
+  }
+
+  ReactDOM.createRoot(document.getElementById('root')).render(h(ProducoesPage));
+})();
+</script>
+</body>
+</html>
