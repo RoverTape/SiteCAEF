@@ -29,7 +29,7 @@ function HeroBrand({ setPage }) {
               </svg>
             </div>
             <div className="hero-brand-top">
-              <span>CAEF · 2026</span>
+              <span>CAEF · Atual</span>
               <span>FACAMP</span>
             </div>
             <h1 className="hero-brand-title">

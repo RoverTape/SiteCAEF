@@ -567,7 +567,7 @@ function SobrePage() {
         </div>
 
         <div id="equipe" style={{ paddingTop: 48, scrollMarginTop: 80 }}>
-          <span className="eyebrow">Gestão 2026</span>
+          <span className="eyebrow">Gestão Atual</span>
           <h2 style={{ fontSize: 36, margin: '12px 0 0', fontWeight: 700, letterSpacing: '-0.02em' }}>Quem está à frente</h2>
           <div className="member-grid">
             {members.map((m, i) => (
