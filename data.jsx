@@ -7,20 +7,53 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+// ─── Fuso do site ───────────────────────────────────────────
+// As datas vêm do banco como timestamptz (instante, em UTC). Lê-las com
+// getHours() e afins mostraria a hora no fuso de quem está visitando, então
+// um evento marcado pra 20h30 apareceria em outra hora pra quem acessa de
+// fora do Brasil. Aqui tudo é convertido pra horário de Brasília, que é o
+// horário em que as coisas de fato acontecem — e o mesmo que o admin digita.
+const TZ_SITE = 'America/Sao_Paulo';
+
+// Offset do fuso do site num dado instante, em minutos (-180 no horário padrão).
+function offsetTZ(date) {
+  const p = {};
+  new Intl.DateTimeFormat('en-US', {
+    timeZone: TZ_SITE, hour12: false,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit'
+  }).formatToParts(date).forEach(x => { p[x.type] = x.value; });
+  const comoUTC = Date.UTC(+p.year, p.month - 1, +p.day,
+    p.hour === '24' ? 0 : +p.hour, +p.minute, +p.second);
+  return (comoUTC - Math.floor(date.getTime() / 1000) * 1000) / 60000;
+}
+
+// Devolve um Date cujos campos *UTC* são a hora de parede em Brasília, pra
+// poder usar getUTCHours() e companhia sem depender do fuso do navegador.
+function emBrasilia(iso) {
+  if (!iso) return null;
+  // Coluna 'date' pura (10 chars) não tem fuso: ancora no meio-dia de Brasília
+  // pra não escorregar de dia na conversão.
+  const d = new Date(iso.length === 10 ? iso + 'T12:00:00-03:00' : iso);
+  if (isNaN(d.getTime())) return null;
+  return new Date(d.getTime() + offsetTZ(d) * 60000);
+}
+
 function fmtDate(iso) {
-  if (!iso) return '';
-  const d = new Date(iso.length === 10 ? iso + 'T12:00:00' : iso);
-  return `${String(d.getDate()).padStart(2,'0')} ${MESES[d.getMonth()]} ${d.getFullYear()}`;
+  const d = emBrasilia(iso);
+  if (!d) return '';
+  return `${String(d.getUTCDate()).padStart(2,'0')} ${MESES[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
 }
 function fmtTime(iso) {
-  if (!iso) return '';
-  const d = new Date(iso);
-  return `${String(d.getHours()).padStart(2,'0')}h${String(d.getMinutes()).padStart(2,'0')}`;
+  const d = emBrasilia(iso);
+  if (!d) return '';
+  return `${String(d.getUTCHours()).padStart(2,'0')}h${String(d.getUTCMinutes()).padStart(2,'0')}`;
 }
 function fmtDataCurta(iso) {
-  if (!iso) return '';
-  const d = new Date(iso);
-  return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;
+  const d = emBrasilia(iso);
+  if (!d) return '';
+  return `${String(d.getUTCDate()).padStart(2,'0')}/${String(d.getUTCMonth()+1).padStart(2,'0')}`;
 }
 function fmtPct(v, casas = 2) {
   if (v == null || isNaN(v)) return '—';
@@ -40,14 +73,12 @@ function tempoLeitura(texto) {
   return Math.max(1, Math.round(palavras / 200));
 }
 
-// ─── Verifica se duas datas ISO caem no mesmo dia (local time) ───
+// ─── Verifica se duas datas ISO caem no mesmo dia (horário de Brasília) ───
 function mesmoDia(iso1, iso2) {
-  if (!iso1 || !iso2) return false;
-  const d1 = new Date(iso1);
-  const d2 = new Date(iso2);
-  return d1.getFullYear() === d2.getFullYear() &&
-         d1.getMonth() === d2.getMonth() &&
-         d1.getDate() === d2.getDate();
+  const d1 = emBrasilia(iso1);
+  const d2 = emBrasilia(iso2);
+  if (!d1 || !d2) return false;
+  return d1.toISOString().slice(0, 10) === d2.toISOString().slice(0, 10);
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -289,15 +320,15 @@ async function loadCAEFData() {
 
   // ─── EVENTOS ────────────────────────────────────────
   const events = (evRes.data || []).map(e => {
-    const dInicio = new Date(e.data_inicio);
-    const dFim = e.data_fim ? new Date(e.data_fim) : null;
+    const dInicio = emBrasilia(e.data_inicio) || new Date(NaN);
+    const dFim = e.data_fim ? emBrasilia(e.data_fim) : null;
     const mesmoDiaFlag = dFim ? mesmoDia(e.data_inicio, e.data_fim) : false;
 
     return {
       id: 'e_' + e.id_evento, kind: 'evento',
-      day: String(dInicio.getDate()).padStart(2,'0'),
-      mon: MESES[dInicio.getMonth()],
-      year: String(dInicio.getFullYear()),
+      day: String(dInicio.getUTCDate()).padStart(2,'0'),
+      mon: MESES[dInicio.getUTCMonth()],
+      year: String(dInicio.getUTCFullYear()),
       time: fmtTime(e.data_inicio), loc: e.local || '',
       title: e.titulo, desc: e.descricao || '',
       tipo: e.tipo || 'evento', cat: labelTipoEvento(e.tipo || 'evento'),

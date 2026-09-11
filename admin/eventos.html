@@ -36,30 +36,26 @@
     return t;
   }
 
-  // ─── Helpers de data/hora (com timezone BR fixo) ───────
-  function inputParaISO(valorInput) {
-    if (!valorInput) return null;
-    return valorInput + ':00-03:00';
-  }
-  function isoParaInput(iso) {
-    if (!iso) return '';
-    var d = new Date(iso);
-    return d.getFullYear() + '-' +
-      String(d.getMonth() + 1).padStart(2, '0') + '-' +
-      String(d.getDate()).padStart(2, '0') + 'T' +
-      String(d.getHours()).padStart(2, '0') + ':' +
-      String(d.getMinutes()).padStart(2, '0');
-  }
+  // ─── Helpers de data/hora ──────────────────────────────
+  // Conversão fica em shared/config.js, ancorada em America/Sao_Paulo:
+  // a leitura antiga usava o fuso da máquina e a escrita chumbava -03:00,
+  // então as duas discordavam em qualquer máquina fora do Brasil.
+  var inputParaISO = window.inputParaISO;
+  var isoParaInput = window.isoParaInput;
+
   function formatarBR(iso) {
     if (!iso) return '—';
     var d = new Date(iso);
+    if (isNaN(d.getTime())) return '—';
     var meses = ['janeiro','fevereiro','março','abril','maio','junho',
                  'julho','agosto','setembro','outubro','novembro','dezembro'];
     var dias = ['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
-    return dias[d.getDay()] + ', ' +
-      d.getDate() + ' de ' + meses[d.getMonth()] + ' de ' + d.getFullYear() +
-      ' às ' + String(d.getHours()).padStart(2,'0') + 'h' +
-      String(d.getMinutes()).padStart(2,'0');
+    // Lê os campos já em horário de Brasília.
+    var b = new Date(d.getTime() + window.offsetTZ(d) * 60000);
+    return dias[b.getUTCDay()] + ', ' +
+      b.getUTCDate() + ' de ' + meses[b.getUTCMonth()] + ' de ' + b.getUTCFullYear() +
+      ' às ' + String(b.getUTCHours()).padStart(2,'0') + 'h' +
+      String(b.getUTCMinutes()).padStart(2,'0');
   }
 
   function EventosPage() {
