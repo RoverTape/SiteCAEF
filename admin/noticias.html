@@ -535,16 +535,9 @@
                     },
                     h("input", {
                       type: "datetime-local",
-                      value: data.data_publi
-                        ? new Date(data.data_publi).toISOString().slice(0, 16)
-                        : "",
+                      value: window.isoParaInput(data.data_publi),
                       onChange: function (e) {
-                        set(
-                          "data_publi",
-                          e.target.value
-                            ? new Date(e.target.value).toISOString()
-                            : null,
-                        );
+                        set("data_publi", window.inputParaISO(e.target.value));
                       },
                     }),
                   ),
