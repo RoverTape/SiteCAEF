@@ -634,6 +634,53 @@ a { color: inherit; text-decoration: none; }
 .value-card h3 { font-size: 17px; font-weight: 700; margin: 0 0 8px; color: var(--ink); }
 .value-card p { font-size: 14px; line-height: 1.55; margin: 0; color: var(--muted); }
 
+/* ─── Sobre: Nossa história ─── */
+.history-callout {
+  margin: 6px 0 22px;
+  padding: 20px 24px;
+  background: var(--card);
+  border-left: 4px solid var(--orange);
+  border-radius: 0 var(--radius) var(--radius) 0;
+}
+.history-callout-num {
+  font-family: var(--font-mono);
+  font-size: 34px; font-weight: 700; line-height: 1;
+  letter-spacing: -0.03em; color: var(--ink-3);
+  display: block;
+}
+.about-block .body .history-callout p {
+  font-size: 14px; line-height: 1.55;
+  margin: 10px 0 0; color: var(--muted); opacity: 1;
+}
+
+.founding-roster { margin: 10px 0 22px; border-top: 1px solid var(--line); }
+.roster-item {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 16px; padding: 12px 4px;
+  border-bottom: 1px solid var(--line);
+  transition: background .25s ease, padding-left .25s ease;
+}
+.roster-item:hover { background: var(--paper-2); padding-left: 10px; }
+.roster-name { font-size: 15px; font-weight: 700; color: var(--ink); }
+.roster-role {
+  font-family: var(--font-mono); font-size: 11px; font-weight: 500;
+  text-transform: uppercase; letter-spacing: 0.12em;
+  color: var(--ink-3); white-space: nowrap;
+}
+
+.history-close {
+  margin-top: 10px;
+  padding: 24px 28px;
+  background: var(--ink-3);
+  border-radius: var(--radius-lg);
+}
+.about-block .body .history-close p {
+  font-size: 17px; line-height: 1.6; font-weight: 500;
+  margin: 0; color: var(--paper); opacity: 1;
+}
+.about-block .body .history-close p + p { margin-top: 8px; }
+.about-block .body .history-close em { font-style: italic; color: var(--aqua); }
+
 .member-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 22px; margin-top: 36px; }
 .member {
   border: 1px solid var(--line); border-radius: var(--radius-lg);
@@ -729,6 +776,8 @@ em, .italic { font-style: italic; }
   .stat-cell:nth-child(2n) { border-right: none; }
   .stat-cell:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
   .values-grid { grid-template-columns: 1fr; }
+  .roster-item { flex-direction: column; align-items: flex-start; gap: 4px; }
+  .roster-role { white-space: normal; }
   .page-hero { padding: 110px 0 80px; }
   .newsletter-signup-grid { grid-template-columns: 1fr; gap: 40px; }
 }

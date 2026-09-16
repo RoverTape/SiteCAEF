@@ -477,7 +477,7 @@ function SobrePage() {
         <div className="container">
           <span className="eyebrow">Sobre o CAEF</span>
           <h1>Um centro acadêmico <span className="accent">vivo</span>.</h1>
-          <p>Quem somos, o que fazemos e por que estudantes de Economia se organizam desde 2008 para pensar o Brasil.</p>
+          <p>Quem somos, o que fazemos e por que estudantes de Economia se organizam para pensar o Brasil — de 2008 aos dias de hoje.</p>
         </div>
       </section>
       <section className="container section">
@@ -488,11 +488,80 @@ function SobrePage() {
             <p>O CAEF entende a Economia como uma ciência social aplicada — irredutível a modelos abstratos e sempre tensionada por escolhas políticas. Por isso, valorizamos a pluralidade metodológica, o rigor analítico e o compromisso com o debate público.</p>
           </div>
         </div>
-        <div className="about-block">
-          <h2>Histórico</h2>
+        <div className="about-block" id="historia" style={{ scrollMarginTop: 80 }}>
+          <h2>Nossa história</h2>
           <div className="body">
-            <p>Fundado em 2008 por um grupo de estudantes interessados em estender o curso de Economia para além da sala de aula, o CAEF organiza ciclos de debate, grupos de estudo, semanas acadêmicas e produções escritas há mais de 17 anos.</p>
-            <p>Hoje conta com uma rede de aproximadamente 250 estudantes ativos, uma newsletter mensal, painel de indicadores próprio e parcerias com IPEA, Banco Central, FGV e CEPAL para visitas e palestras.</p>
+            <p>O Centro Acadêmico de Economia FACAMP Luiz Gonzaga Belluzzo (CAEF) é a entidade representativa dos estudantes de Economia da FACAMP. Fundado em <strong>22 de outubro de 2025</strong>, o Centro Acadêmico nasceu com o propósito de fortalecer a participação estudantil, ampliar as experiências acadêmicas e profissionais e contribuir para a construção de uma comunidade universitária mais integrada, participativa e conectada aos diferentes caminhos da formação em Economia.</p>
+            <p>A iniciativa foi construída por <strong>Fabrício de Castro</strong>, <strong>Matheus Cavallaro Tambasco</strong> e <strong>Elisa Monteiro de Souza Furtado</strong>, que identificaram a oportunidade de criar um novo espaço de representação e participação para os estudantes de Economia. A partir dessa proposta, os três estruturaram a <em>Chapa Professor Belluzzo</em> e conduziram o processo que levou à fundação da entidade.</p>
+            <p>Esse trabalho envolveu desde a concepção do projeto e a elaboração do estatuto até a apresentação da plataforma de gestão aos estudantes e a organização da Assembleia Extraordinária de Fundação.</p>
+
+            <div className="history-callout">
+              <span className="history-callout-num">93%</span>
+              <p>dos votos válidos aprovaram a proposta na Assembleia Extraordinária de Fundação, dando origem ao atual CAEF e à sua primeira gestão.</p>
+            </div>
+
+            <div className="founding-roster">
+              <div className="roster-item"><span className="roster-name">Fabrício de Castro</span><span className="roster-role">Presidente</span></div>
+              <div className="roster-item"><span className="roster-name">Elisa Monteiro de Souza Furtado</span><span className="roster-role">Vice-presidente</span></div>
+              <div className="roster-item"><span className="roster-name">Douglas Montanheiro Filho</span><span className="roster-role">Diretor Administrativo</span></div>
+              <div className="roster-item"><span className="roster-name">Pedro Campos Lambertini</span><span className="roster-role">Diretor Acadêmico</span></div>
+              <div className="roster-item"><span className="roster-name">João Paulo Lima Pondian</span><span className="roster-role">Diretor Financeiro</span></div>
+              <div className="roster-item"><span className="roster-name">Lídia de Souza Escobar Coachman</span><span className="roster-role">Diretora de Recursos Humanos</span></div>
+              <div className="roster-item"><span className="roster-name">Matheus Cavallaro Tambasco</span><span className="roster-role">Diretor de Relações Públicas</span></div>
+            </div>
+
+            <p>Desde sua fundação, o CAEF busca estabelecer uma representação estudantil que vá além da defesa dos interesses dos alunos. A proposta é contribuir ativamente para sua formação, criando oportunidades de aprendizado, participação, integração e contato com diferentes perspectivas acadêmicas e profissionais.</p>
+          </div>
+        </div>
+
+        <div className="about-block">
+          <h2>Uma história que começou antes</h2>
+          <div className="body">
+            <p>A sigla CAEF remete a uma história anterior da representação estudantil de Economia na FACAMP.</p>
+            <p>Em <strong>2008</strong>, um grupo de estudantes fundou o primeiro Centro Acadêmico do curso, denominado <em>CAEF Maria da Conceição Tavares</em>. A entidade desenvolveu suas atividades durante alguns anos, contribuindo para a representação dos estudantes e para a construção da vida acadêmica do curso, até que suas atividades fossem descontinuadas no período posterior à pandemia da COVID-19.</p>
+            <p>O CAEF fundado em 2025 é uma nova entidade, sem vínculo institucional, administrativo ou jurídico com o Centro Acadêmico anterior. A manutenção da sigla, portanto, representa uma escolha consciente de preservar a memória daqueles que iniciaram essa trajetória e reconhecer o trabalho dos estudantes que, anos antes, se dedicaram à construção de um espaço de representação para o curso de Economia.</p>
+            <p>A nova entidade optou, contudo, por uma denominação diferente. O primeiro CAEF recebeu o nome de Maria da Conceição Tavares, uma das grandes referências do pensamento econômico brasileiro e internacional. Na nova fundação, escolheu-se homenagear Luiz Gonzaga Belluzzo, professor, economista e um dos fundadores da FACAMP, cuja trajetória possui relação direta com a história da instituição.</p>
+
+            <div className="values-grid" style={{ margin: '4px 0 20px' }}>
+              <div className="value-card">
+                <h3>O nome</h3>
+                <p><strong>Luiz Gonzaga Belluzzo</strong> — professor, economista e um dos fundadores da FACAMP. Homenagem da entidade fundada em 2025.</p>
+              </div>
+              <div className="value-card">
+                <h3>A sigla</h3>
+                <p><strong>CAEF</strong> — preserva a memória do Centro Acadêmico que o antecedeu, o CAEF Maria da Conceição Tavares, e de seus fundadores.</p>
+              </div>
+            </div>
+
+            <p>A mudança de nome possui caráter institucional e simbólico e não representa uma diminuição da importância de Maria da Conceição Tavares. Pelo contrário, sua contribuição para o pensamento econômico permanece reconhecida pelo CAEF, assim como sua trajetória como uma das mulheres que alcançaram posição de destaque em uma profissão historicamente marcada pela predominância masculina.</p>
+            <p>Tavares representa também uma referência para a transformação desse cenário. O CAEF acredita que a Economia deve ser cada vez mais plural e que a formação de novas gerações de economistas deve contribuir para ampliar a presença de mulheres nos espaços de liderança e destaque da profissão, no Brasil e no mundo.</p>
+            <p>Dessa forma, o nome atual do Centro Acadêmico representa uma homenagem a Luiz Gonzaga Belluzzo, enquanto a sigla CAEF preserva a memória da entidade que o antecedeu e de seus fundadores. São referências distintas, mas que fazem parte da história que o Centro Acadêmico escolheu reconhecer.</p>
+          </div>
+        </div>
+
+        <div className="about-block">
+          <h2>O CAEF no presente</h2>
+          <div className="body">
+            <p>A atuação do CAEF parte de uma ideia central: <em>a formação de um economista não acontece apenas dentro da sala de aula.</em></p>
+            <p>A universidade também é espaço de pesquisa, debate, liderança, relacionamento, desenvolvimento profissional e construção coletiva. Por isso, o Centro Acadêmico trabalha para ampliar as oportunidades de participação dos estudantes e aproximá-los de diferentes experiências ao longo da graduação.</p>
+            <p>Entre suas frentes de atuação estão a realização de palestras, debates, rodas de conversas, workshops, visitas técnicas e eventos acadêmicos, além do incentivo às monitorias, à pesquisa, a projetos sociais e ao desenvolvimento profissional.</p>
+            <p>A <strong>Semana de Economia FACAMP</strong> é um dos principais exemplos dessa atuação. A programação reúne professores, pesquisadores, profissionais e ex-alunos para discutir diferentes perspectivas sobre a Economia, o mercado e a formação profissional, criando um espaço de encontro entre a comunidade acadêmica e diferentes atores da área econômica.</p>
+            <p>Outro eixo de atuação é a aproximação entre universidade e mercado de trabalho. O contato com profissionais e ex-alunos permite apresentar diferentes trajetórias, áreas de atuação e possibilidades profissionais, ajudando os estudantes a compreenderem a diversidade de caminhos que podem ser construídos a partir da formação em Economia.</p>
+          </div>
+        </div>
+
+        <div className="about-block">
+          <h2>Construindo os próximos capítulos</h2>
+          <div className="body">
+            <p>Mais do que organizar atividades, o CAEF busca consolidar uma cultura de participação, diálogo, representatividade e protagonismo estudantil.</p>
+            <p>O Centro Acadêmico pretende ser um espaço no qual os alunos possam apresentar demandas, propor iniciativas, discutir os rumos do curso e participar ativamente da construção da própria experiência universitária. Ao mesmo tempo, busca manter um diálogo permanente com a FACAMP, seus professores, coordenadores e demais organizações estudantis.</p>
+            <p>A história do CAEF é, portanto, marcada por diferentes gerações de estudantes e por diferentes momentos da representação estudantil de Economia na FACAMP. O Centro Acadêmico atual constrói sua própria trajetória, mas reconhece que nenhuma história começa exatamente do zero.</p>
+
+            <div className="history-close">
+              <p>O passado deixou um <em>legado</em>.</p>
+              <p>O presente constrói novas <em>possibilidades</em>.</p>
+              <p>E o futuro continuará sendo escrito pelos <em>estudantes</em>.</p>
+            </div>
           </div>
         </div>
         <div className="about-block">

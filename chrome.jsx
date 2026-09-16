@@ -179,7 +179,7 @@ function Footer({ setPage }) {
             <img src="img/fotterimg.png" alt="CAEF" style={{ height: 48, width: 'auto', objectFit: 'contain' }} />
           </div>
           <p style={{ fontSize: 14, lineHeight: 1.6, opacity: 0.75, maxWidth: 340, margin: 0 }}>
-            Centro Acadêmico de Economia da FACAMP — Professor Luiz Gonzaga Belluzzo. Promovendo o desenvolvimento acadêmico, crítico e humano dos estudantes desde 2008.
+            Centro Acadêmico de Economia da FACAMP — Professor Luiz Gonzaga Belluzzo. Promovendo o desenvolvimento acadêmico, crítico e humano dos estudantes.
           </p>
         </div>
         <div>
